@@ -1,6 +1,24 @@
-[build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+[project]
+name = "lifelike-gds"
+version = "0.2.0"
+description = "a gds package for graph network analysis"
+authors = [
+    {name = "Robin", email = "robincai92130@gmail.com"},
 ]
-build-backend = "setuptools.build_meta"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "neo4j>=6.1.0",
+    "networkx>=3.6.1",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "scipy>=1.17.1",
+    "simplejson>=3.20.2",
+    "xlsxwriter>=3.2.9",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter>=1.1.1",
+]

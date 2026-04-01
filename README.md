@@ -1,87 +1,203 @@
 # GDS Public
 
-Knowledge mining project for Lifelike. "Forked" from SBRG/GDS including only the NW-arangodb branch.
+Knowledge mining project for Lifelike. "Forked" from SBRG/GDS including only the NW-arangodb branch. This project provides graph database analysis tools for network analysis, including support for Neo4j, ArangoDB, and various bioinformatics datasets.
 
-If you have just started working on the project, see the below sections for guidance on getting things set up.
+## Project Overview
 
-**Conda Users**: Follow the instructions [here](#setup-for-conda-users) first!
+**GDS Public** is designed for:
+- Knowledge mining and graph database management
+- Network analysis and shortest path algorithms
+- Radiate analysis for exploring network connections
+- Integration with Neo4j and ArangoDB databases
 
-## Setup pipenv
+## Requirements
 
-First, install [pipenv](https://pypi.org/project/pipenv/) on your machine if you haven't already. [These](https://pipenv.pypa.io/en/latest/install/) instructions will walk you through installation.
+- Python ≥ 3.11
+- `uv` package manager (lightweight, fast replacement for pip/pipenv)
 
-Once you have successfully installed pipenv, run the following in the root directory of the project:
+## Quick Start
 
+### 1. Install `uv` (if not already installed)
+
+On macOS/Linux:
 ```bash
-pipenv sync
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-This will create a new python virtual environment, and install all packages specified in the pipfile in that environment.
+On Windows:
+```bash
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-**Note:** You may need to add pipenv to your system's `PATH` variable. [This](https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv) section of the installation steps above address modifying your `PATH`.
+Or install via Homebrew (macOS):
+```bash
+brew install uv
+```
 
-## Configure Editor to use Python Virtual Environment
+### 2. Set Up the Development Environment
 
-You may want to configure your IDE to automatically hook into the virtual environment you created earlier. See the different sections below for guidance on how to set this up for your specific editor.
+From the root directory of the project:
+
+```bash
+just setup
+```
+
+This runs `uv sync` to create a Python virtual environment and install all dependencies.
+
+### 3. Verify Installation
+
+```bash
+just lint
+```
+
+## Using `just` Commands
+
+This project uses a [justfile](justfile) for common tasks. View all available commands:
+
+```bash
+just --list
+```
+
+Common commands:
+- `just setup` - Create and sync the Python environment
+- `just add <package>` - Add a runtime dependency
+- `just add-dev <package>` - Add a development dependency
+- `just lint` - Run code linting checks
+- `just format` - Format code
+- `just fix` - Auto-fix linting and formatting issues
+- `just typecheck` - Run type checking
+- `just test` - Run tests
+- `just sync` - Update the lockfile and environment
+- `just lock` - Update the lockfile
+
+## Working with Jupyter Notebooks
+
+Notebooks are located in the [notebooks/](notebooks/) directory. To run a notebook:
+
+1. Launch Jupyter:
+   ```bash
+   uv run jupyter notebook
+   ```
+
+2. Navigate to the desired notebook in the Jupyter interface
+
+3. The notebooks demonstrate various analyses:
+   - **Radiate Analysis**: Explore network graphs radiating from nodes
+   - **Shortest Paths**: Find optimal paths between nodes
+   - **Intersection Analysis**: Identify common pathways
+   - **Network Traces**: Track connections through networks
+
+## Project Structure
+
+```
+.
+├── src/
+│   └── lifelike_gds/          # Main package
+│       ├── arango_network/    # ArangoDB integration
+│       ├── graph/             # Graph analysis algorithms
+│       ├── network/           # Network utilities
+│       └── utils/             # Utility functions
+├── notebooks/                 # Jupyter notebooks and examples
+│   ├── CfB_Workshop/          # CfB training materials
+│   ├── UCSD_Workshop/         # UCSD training materials
+│   ├── generic/               # Generic analysis examples
+│   ├── neo4j_general/         # Neo4j examples
+│   └── reactome/              # Reactome database examples
+├── data/                      # Input data for analyses
+│   ├── endo/                  # Endocytosis pathway data
+│   ├── eot/                   # End-of-trail data
+│   └── metal_biomass/         # Metal/biomass data
+├── arangodb/                  # ArangoDB configuration and setup
+├── neo4j-db/                  # Neo4j database notes
+├── docs/                      # Documentation files
+├── pyproject.toml             # Project configuration
+├── justfile                   # Task automation
+└── README.md                  # This file
+```
+
+## Editor Configuration
 
 ### VS Code
 
-First, create a folder in the root of the project called `.vscode`, if you haven't already. In that folder, create a file called `launch.json`. In the file, add the following:
+VS Code will automatically detect the `uv` environment. To ensure proper Python environment detection:
 
-```json
-{
-    "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
-        }
-    ]
-}
-```
+1. Open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows/Linux)
+2. Search for and select "Python: Select Interpreter"
+3. Choose the interpreter from the `uv` environment (usually shown with the project name)
 
-If the `configurations` list property already exists, just add the additional object to it.
+To enable auto-formatting with Ruff:
 
-Next, in the bottom left of your editor, you should see something like:
-
-![Screen Shot 2021-10-07 at 3 25 28 PM](https://user-images.githubusercontent.com/12260867/136470566-2650e9a6-a031-4135-a5ca-c0eaf68973fb.png)
-
-Click on the "Python" section, and a window should open at the top of the editor. Select the `GDS` option, and then select the location of your desired virtual environment from the list, or enter it manually.
-
-Now when you open a VS Code terminal your virtual environment will automatically be activated.
-
-Next, open up your workspace settings file and add the following to the `settings` property:
-
-```json
-    "python.pythonPath": "/path/to/your/virtualenvs/your-virtual-env/bin/python",
-```
-
-Your workspace should now recognize all packages installed in the virtualenv you specified.
-
-**Note:** If you aren't sure where your virtualenv is located, you should be able to find it by running: `pipenv --venv`. This will output the absolute path to the currently active virtualenv.
+1. Install the Ruff extension: `charliermarsh.ruff`
+2. Add to your `.vscode/settings.json`:
+   ```json
+   {
+       "[python]": {
+           "editor.formatOnSave": true,
+           "editor.defaultFormatter": "charliermarsh.ruff"
+       }
+   }
+   ```
 
 ### PyCharm
 
-Follow the instructions [here](https://www.jetbrains.com/help/pycharm/pipenv.html#pipenv-existing-project) to setup a pipenv environment.
+1. Go to **PyCharm → Preferences** (macOS) or **File → Settings** (Linux/Windows)
+2. Navigate to **Project → Python Interpreter**
+3. Click the gear icon and select **Add**
+4. Choose **Existing Environment** and locate the Python executable in the `uv` environment
+5. To find the environment path, run: `uv venv --no-activation-script --python /path/to/python`
 
-## Setup for Conda Users
+## Development Workflow
 
-1. Create an environment using the Anaconda Prompt: `conda create -n <environment-name> python=3.9`
-2. In Anaconda Navigator switch to that environment at the dropdown menu after “Applications on”
-3. Install for that environment Spyder (You can also install PyCharms if you prefer).
-4. Open Spyder for the gdsaddn environment.
-5. On the IPython console run: `pip install /path/to/GDS-repo`. This finds and installs all dependencies automatically.
+### Code Quality
 
-Also, see [this](https://github.com/SBRG/GDS/blob/master/docs/GDS_Conda_Install_Notes.docx) document, which the above instructions are sourced from.
+This project enforces code quality standards using [Ruff](https://github.com/astral-sh/ruff) for linting and formatting.
 
-## Setup Editor to Auto-Format Python on Save
+**Before committing:**
+```bash
+just fix      # Auto-fixes linting and formatting issues
+just typecheck # Run type checking
+```
 
-This project uses [black](https://black.readthedocs.io/en/stable/index.html) to format code via the command line. However, you can also setup your editor to use black formatting automatically upon saving a file. If you want to setup your editor to do so, please follow the instructions [here](https://black.readthedocs.io/en/stable/integrations/editors.html).
+### Adding Dependencies
 
-VS Code users may also find [these](https://dev.to/adamlombard/how-to-use-the-black-python-code-formatter-in-vscode-3lo0) instructions helpful. Make sure you save the new settings to your workspace, and _not_ to your user settings!
+To add a new runtime dependency:
+```bash
+just add requests
+```
 
-## Configure Pre-Commit
+To add a development dependency:
+```bash
+just add-dev pytest
+```
 
-Before your commits can automatically be checked for style/formatting issues, you need to setup your git hooks to use `pre-commit`. Make sure you've installed pipenv and setup your virtual environment as described above, and then simply run `pre-commit install`. This will update your `.git/hooks/pre-commit` script to run `pre-commit` any time you commit changes.
+## Running Tests
+
+```bash
+just test
+```
+
+## Contributing
+
+1. Create a new branch for your feature or fix
+2. Make your changes and ensure code quality:
+   ```bash
+   just fix
+   just typecheck
+   ```
+3. Run tests to ensure everything works:
+   ```bash
+   just test
+   ```
+4. Commit and push your changes
+
+## License
+
+See [LICENSE](LICENSE) for license information.
+
+## References
+
+- **Original Project**: [SBRG/GDS](https://github.com/SBRG/GDS)
+- **Lifelike Homepage**: https://lifelike.bio/
+- **Neo4j Documentation**: https://neo4j.com/docs/
+- **uv Documentation**: https://docs.astral.sh/uv/
+

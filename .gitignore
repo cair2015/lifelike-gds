@@ -11,3 +11,6 @@ lifelike_gds.egg-info/
 __pycache__
 
 *.idea
+.env
+.venv/
+
