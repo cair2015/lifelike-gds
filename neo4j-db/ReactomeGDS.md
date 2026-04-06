@@ -247,9 +247,113 @@ DELETE r;
 
 ---
 
-### Changelog-0100: No Changes
+### Changelog-0100: Refactor Reactions and Optimize Indexes
 
-This version contains no modifications. It serves as a checkpoint in the versioning chain.
+This changeset removes unnecessary edges, refactors transport reactions to enable pattern-based analysis, and replaces unique constraints with indexes for improved cloning operations.
+
+#### 4.9: Remove Inferred Relationships
+
+Remove inferred relationships that can be derived from other connections:
+
+```cypher
+MATCH (n)-[r:inferredTo]->(m) 
+DELETE r;
+```
+
+#### 4.10: Mark Transport Reactions for Refactoring
+
+Identify and flag transport reactions (based on display name and category) that need to be restructured to connect specific input and output entity members:
+
+```cypher
+MATCH (n:ReactionLikeEvent {category: 'transition'}) 
+WHERE (n.displayName CONTAINS 'transport') OR (n.displayName CONTAINS 'translocate')
+WITH n MATCH (s1:EntitySet)-[:input]-(n)-[:output]-(s2:EntitySet)
+SET n.refactorStatus = 'refactored';
+```
+
+#### 4.11: Convert Unique Constraints to Indexes
+
+Replace unique constraints on Event dbId and stId with non-unique indexes. This is necessary because unique constraints prevent node cloning operations, while indexes maintain performance without blocking duplication:
+
+```cypher
+-- Find and drop existing unique constraints on Event-related entities
+CALL apoc.schema.nodes()
+YIELD name, label, properties, type
+WHERE type = 'UNIQUENESS'
+  AND (
+    (label = 'Event' AND properties IN [['dbId'], ['stId']]) OR
+    (label = 'ReactionLikeEvent' AND properties IN [['dbId'], ['stId']]) OR
+    (label = 'Reaction' AND properties IN [['dbId'], ['stId']])
+  )
+WITH COLLECT({name: name, label: label, properties: properties}) AS cs
+UNWIND cs AS c
+CALL apoc.cypher.runSchema(
+  'DROP CONSTRAINT `' + c.name + '` IF EXISTS',
+  {}
+)
+YIELD value
+RETURN c.name AS name, c.label AS label, c.properties AS properties, 'dropped' AS status
+ORDER BY label, properties;
+
+-- Create indexes to replace the constraints
+CREATE INDEX reactionLikeEvent_dbId_index IF NOT EXISTS
+FOR (n:ReactionLikeEvent) ON (n.dbId);
+
+CREATE INDEX reactionLikeEvent_stId_index IF NOT EXISTS
+FOR (n:ReactionLikeEvent) ON (n.stId);
+
+-- Verify the indexes were created
+SHOW INDEXES
+YIELD name, type, labelsOrTypes, properties, state
+WHERE labelsOrTypes = ['ReactionLikeEvent']
+RETURN name, type, properties, state
+ORDER BY name;
+```
+
+#### 4.12: Clone Reactions and Add Input-Output Relationships
+
+For each marked transport reaction, create cloned instances that connect specific metabolite members from input and output entity sets:
+
+```cypher
+MATCH (n:ReactionLikeEvent {refactorStatus: 'refactored'})
+MATCH (s1:EntitySet)-[:input]-(n)-[:output]-(s2:EntitySet)
+MATCH (m1)-[:memberOf]->(s1)
+MATCH (m2)-[:memberOf]->(s2)
+WHERE EXISTS {
+  MATCH (m1)-[:referenceEntity]->(:ReferenceEntity)<-[:referenceEntity]-(m2)
+}
+WITH DISTINCT n, m1, m2
+CALL (n) {
+  CALL apoc.refactor.cloneNodes([n])
+  YIELD output
+  RETURN output AS n2
+}
+SET n2.refactorStatus = 'added'
+MERGE (m1)-[:input]->(n2)-[:output]->(m2)
+RETURN COUNT(*) AS cloned_reactions;
+```
+
+#### 4.13: Propagate Regulation Relationships to Cloned Reactions
+
+Copy regulatory relationships from original reactions to their cloned instances:
+
+```cypher
+MATCH (n:ReactionLikeEvent {refactorStatus: 'refactored'})-[:regulates]-(r)
+MATCH (n2:ReactionLikeEvent {dbId: n.dbId, refactorStatus: 'added'})
+MERGE (r)-[:regulates]->(n2)
+RETURN COUNT(*) AS relationships_merged;
+```
+
+#### 4.14: Propagate Catalyst Relationships to Cloned Reactions
+
+Copy catalyst relationships from original reactions to their cloned instances:
+
+```cypher
+MATCH (n:ReactionLikeEvent {refactorStatus: 'refactored'})-[:catalyzes]-(c)
+MATCH (n2:ReactionLikeEvent {dbId: n.dbId, refactorStatus: 'added'})
+MERGE (c)-[:catalyzes]->(n2)
+RETURN COUNT(*) AS relationships_merged;
+```
 
 ---
 
