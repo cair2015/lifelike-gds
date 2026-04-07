@@ -1,15 +1,39 @@
-from lifelike_gds.arango_network.trace_graph_nx import TraceGraphNx
-from lifelike_gds.arango_network.trace_graph_utils import \
+"""
+In-betweenness trace analysis using NetworkX and database-agnostic implementation.
+
+This module provides betweenness centrality analysis to identify influential nodes
+and pathways connecting source and target nodes. Works with any database backend.
+"""
+
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_utils import \
     set_edge_weight_by_source_node_weight, remove_edge_prop, all_shortest_paths
 import networkx as nx
 import logging
 
 
 class InBetweennessTrace(TraceGraphNx):
+    """
+    In-betweenness trace analysis for network graphs.
+    
+    Computes betweenness centrality for nodes based on shortest paths between
+    source and target node sets. Database-agnostic implementation.
+    """
+    
     def __init__(self, graphsource):
         super().__init__(graphsource)
 
     def get_betweenness_prop_name(self, sources, targets):
+        """
+        Generate property name for betweenness values.
+        
+        Args:
+            sources: Source node set name
+            targets: Target node set name
+            
+        Returns:
+            Property name string
+        """
         return f"{sources}_{targets}_betweenness"
 
     def compute_inbetweenness(self, sources, targets, inbetweenness_prop_name=None, pagerank_prop=None):
@@ -111,22 +135,6 @@ class InBetweennessTrace(TraceGraphNx):
             shortest_paths_plus_n=shortest_paths_plus_n)
         self.add_graph_description(f"traces from all {selected_nodeset} to {targets}")
 
-    def add_trace_from_sources_to_all_selected_nodes(
-        self, 
-        selected_nodeset: str,
-        sources: str, 
-        weighted_prop,
-        trace_name='Sources to select',
-        shortest_paths_plus_n=0):
-        self.add_selected_nodes_traces_combined_network(
-            selected_nodeset, 
-            weighted_prop, 
-            sources, 
-            targets=None,
-            trace_name=trace_name,
-            shortest_paths_plus_n=shortest_paths_plus_n)
-        self.add_graph_description(f"Traces from {sources} to all {selected_nodeset};")
-
     def add_inbetweenness_trace_networks_with_selected_nodes(
         self, 
         select, 
@@ -137,10 +145,10 @@ class InBetweennessTrace(TraceGraphNx):
         """
         Add two traces: source to selected nodes, selected nodes to targets
         Args:
-            selected_nodes: list of arango nodes
+            select: selected node set name
             sources: source set name
             targets: target set name
-            add_graphdesc: if True, add graph description
+            shortest_paths_plus_n: number of additional shortest paths to include
         Returns:
         """
         self.compute_inbetweenness(sources, targets)
@@ -166,12 +174,13 @@ class InBetweennessTrace(TraceGraphNx):
         """
         Add two traces: source to selected nodes, selected nodes to targets
         Args:
-            selected_nodes: list of arango nodes
+            selected_nodes: list of nodes
             sources: source set name
             targets: target set name
             include_allshortest_path: if True, add shortest paths to the graph
             do_compute: if True, compute in-betweenness values
             add_graphdesc: if True, add graph description
+            shortest_paths_plus_n: number of additional shortest paths to include
         Returns:
         """
         if do_compute:
@@ -198,4 +207,3 @@ class InBetweennessTrace(TraceGraphNx):
         self.add_trace_networks_with_selected_nodes(selected_nodes, sources, targets, False, False)
         self.add_graph_description(f"Traces from {sources} to top {num} betweenness nodes;")
         self.add_graph_description(f"Traces from top {num} betweenness nodes to {targets};")
-
