@@ -1,5 +1,5 @@
 from lifelike_gds.arango_network.database import *
-from lifelike_gds.arango_network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 from lifelike_gds.network.graph_utils import DirectedGraph
 import networkx as nx
 import re
@@ -282,7 +282,8 @@ class Reactome(GraphSource):
             """
         tracegraph.add_nodes(node_query)
         tracegraph.add_rels(rel_query)
-        logging.info(nx.info(tracegraph.graph))
+        graph_info = f"Graph: nodes={tracegraph.graph.number_of_nodes()}, edges={tracegraph.graph.number_of_edges()}"
+        logging.info(graph_info)
         return tracegraph
 
     def custome_init_trace_graph(self, tracegraph:TraceGraphNx, excluding_nodes):
@@ -378,7 +379,8 @@ class Reactome(GraphSource):
             """
         tracegraph.add_nodes(node_query, rels=REACTOME_TRACE_RELS, node_ids=node_ids)
         tracegraph.add_rels(rel_query, rels=REACTOME_TRACE_RELS, node_ids=node_ids)
-        logging.info(nx.info(tracegraph.graph))
+        graph_info = f"Graph: nodes={tracegraph.graph.number_of_nodes()}, edges={tracegraph.graph.number_of_edges()}"
+        logging.info(graph_info)
         return tracegraph
 
     @classmethod

@@ -2,7 +2,7 @@
 import itertools
 import logging
 import networkx as nx
-from networkx.exception import NetworkXNoPath
+from networkx.exception import NetworkXNoPath, NodeNotFound
 import numpy as np
 import pandas as pd
 import sys
@@ -186,7 +186,7 @@ def shortest_paths(D, sources, targets, weight=None, undirected=False):
         for t in targets:
             try:
                 yield nx.shortest_path(G, s, t, weight=weight)
-            except nx.exception.NetworkXNoPath:
+            except NetworkXNoPath:
                 pass
 
 
@@ -388,7 +388,7 @@ def _all_shortest_paths(D, source, target, weight=None):
     try:
         for p in nx.all_shortest_paths(D, source, target, weight=weight):
             yield p
-    except (nx.exception.NetworkXNoPath, nx.exception.NodeNotFound) as e:
+    except (NetworkXNoPath, NodeNotFound) as e:
         logging.error(e)
         return []
 
@@ -417,7 +417,7 @@ def _all_k_shortest_paths(D, source, target, k, weight=None):
             else:
                 l = len(p)
             yield p
-    except (nx.exception.NetworkXNoPath, nx.exception.NodeNotFound):
+    except (NetworkXNoPath, NodeNotFound):
         return []
 
 

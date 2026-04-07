@@ -1,4 +1,4 @@
-from lifelike_gds.arango_network.radiate_trace import *
+from lifelike_gds.network.radiate_trace import *
 from lifelike_gds.arango_network.reactome import *
 
 NODE_SETS = ['Survivor and Non-Survivor', 'Survivor', 'Non-Survivor']
@@ -76,7 +76,8 @@ class PlasmaMetabolitesRadiateTracing:
         ref_ids = self._get_plasma_metabolite_reference_entities(group, input_dir=input_dir)
         self.tracegraph.add_nodes(node_query2, ref_ids=ref_ids)
         self.tracegraph.add_rels(node_rel2, ref_ids=ref_ids)
-        logging.info(nx.info(self.tracegraph.graph))
+        graph_info = f"Graph: nodes={self.tracegraph.graph.number_of_nodes()}, edges={self.tracegraph.graph.number_of_edges()}"
+        logging.info(graph_info)
         desc = f"most changed metabolites in {group} group"
         nodes = self.graphsource.database.get_nodes_by_attr(ref_ids, 'dbId', 'ReferenceEntity')
         self.tracegraph.set_node_set_from_arango_nodes(nodes, group, desc)

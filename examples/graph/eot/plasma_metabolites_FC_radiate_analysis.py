@@ -1,4 +1,4 @@
-from lifelike_gds.arango_network.radiate_trace import *
+from lifelike_gds.network.radiate_trace import *
 from lifelike_gds.arango_network.reactome import *
 
 GROUP_A = ["Survivor"]

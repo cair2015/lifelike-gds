@@ -1,9 +1,9 @@
 import os
 
 from lifelike_gds.arango_network.biocyc import *
-from lifelike_gds.arango_network.inbetweenness_trace import *
-from lifelike_gds.arango_network.radiate_trace import *
-from lifelike_gds.arango_network.trace_graph_utils import *
+from lifelike_gds.network.inbetweenness_trace import *
+from lifelike_gds.network.radiate_trace import *
+from lifelike_gds.network.trace_graph_utils import *
 
 """
 sources: Feedbatch 2 imodulon genes with RNA-seq fold changes from early to later (26-34 hrs) timepoints. 

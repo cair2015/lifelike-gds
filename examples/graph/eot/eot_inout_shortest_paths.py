@@ -1,20 +1,27 @@
 import os
+import dotenv
+from pathlib import Path
 
 from lifelike_gds.arango_network.reactome import *
-from lifelike_gds.arango_network.shortest_paths_trace import ShortestPathTrace
+from lifelike_gds.network.shortest_paths_trace import ShortestPathTrace
+from lifelike_gds.utils import get_project_root
+
 
 """
 Create shortest paths traces from endo in-chemical to out-chemical, by selecting different cluster group (1-5).
 Compare paths by excluding different chemicals from the traces, e.g. H+, H2O, or all secondary metabs
 """
 
-uri = os.getenv('ARANGO_URI', 'bolt://localhost:7687')
-username = os.getenv('ARANGO_USER', 'arango')
-password = os.getenv('ARANGO_PASSWORD', 'rcai')
-dbname = os.getenv('ARANGO_DATABASE', 'reactome-human')
-db_version = 'reactome-human from 12152021 dump'
-database = ReactomeDB(dbname, uri, username, password)
+dotenv.load_dotenv()  # Load environment variables from .env file
 
+db_version = 'reactome-human from 12152021 dump'
+database = ReactomeDB()
+
+# get data folder path
+DATA_DIR = get_project_root() / 'data'
+INPUT_DIR = DATA_DIR / 'eot' / 'input'
+OUTPUT_DIR = DATA_DIR / 'eot' / 'output'
+FILE_NAME = 'endo_match_inout_chems.xlsx'
 
 def create_tracegraph(exclude, output_dir='./eot/output'):
     reactome = Reactome(database)
@@ -41,7 +48,7 @@ def create_tracegraph(exclude, output_dir='./eot/output'):
 
 
 def get_graph_name(cluster_num, exclude):
-    graphName = f"EoT cluster{cluster_num} in->out shortest paths"
+    graphName = f"EoT-cluster{cluster_num}-inout-shortest-paths"
     name_postfix = ""
     if exclude == 'ALL':
         name_postfix = " excluding all secondary"
@@ -69,20 +76,19 @@ def write_inout_shortest_paths_sankey(tracegraph, inout_paris, cluster_num, excl
         targets += target
     ingroup = f"eot_cluster{cluster_num}_in"
     outgroup = f"eot_cluster{cluster_num}_out"
-    tracegraph.set_node_set_from_arango_nodes(sources, ingroup, ingroup)
-    tracegraph.set_node_set_from_arango_nodes(target, outgroup, outgroup)
+    tracegraph.set_node_set_from_db_nodes(sources, ingroup, ingroup)
+    tracegraph.set_node_set_from_db_nodes(targets, outgroup, outgroup)
     tracegraph.add_shortest_paths(ingroup, outgroup)
 
     outfileName = f"{get_graph_name(cluster_num, exclude)}.graph"
-    tracegraph.write_to_sankey_file(outfileName)
+    tracegraph.write_to_sankey_file(OUTPUT_DIR / outfileName)
 
 
-def generate_eot_cluster_inout_shortest_paths_sankey(cluster_nums: [], exclude='ALL', input_dir='./eot/input',
-                                                     inputfile="endo_match_inout_chems.xlsx"):
-    tracegraph = create_tracegraph(exclude)
-    infile = os.path.join(input_dir, inputfile)
+def generate_eot_cluster_inout_shortest_paths_sankey(cluster_nums: list, exclude='ALL'):
+    infile = INPUT_DIR / FILE_NAME
     df = pd.read_excel(infile, usecols=['Cluster', 'IN stId', 'OUT stId'])
     df = df.dropna()
+    tracegraph = create_tracegraph(exclude)
     for cluster_num in cluster_nums:
         df_c = df[df['Cluster'] == cluster_num]
         cluster_pairs = [(row['IN stId'], row['OUT stId']) for index, row in df_c.iterrows()]
@@ -90,7 +96,8 @@ def generate_eot_cluster_inout_shortest_paths_sankey(cluster_nums: [], exclude='
 
 
 if __name__ == '__main__':
-    generate_eot_cluster_inout_shortest_paths_sankey([2, 4], None)
-    generate_eot_cluster_inout_shortest_paths_sankey([2, 4], ['H+'])
-    generate_eot_cluster_inout_shortest_paths_sankey([2, 4], ['H+', 'H2O'])
+    print(DATA_DIR)
+    # generate_eot_cluster_inout_shortest_paths_sankey([2, 4], None)
+    # generate_eot_cluster_inout_shortest_paths_sankey([2, 4], ['H+'])
+    # generate_eot_cluster_inout_shortest_paths_sankey([2, 4], ['H+', 'H2O'])
     generate_eot_cluster_inout_shortest_paths_sankey([2, 4])

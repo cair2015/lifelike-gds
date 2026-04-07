@@ -1,6 +1,6 @@
 import os
 
-from lifelike_gds.arango_network.radiate_trace import RadiateTrace
+from lifelike_gds.network.radiate_trace import RadiateTrace
 from lifelike_gds.arango_network.reactome import *
 
 """

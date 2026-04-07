@@ -9,7 +9,7 @@ import logging
 from typing import List, Dict, Any, Optional, Union
 
 import pandas as pd
-from neo4j import GraphDatabase, Session, Driver, Result
+from neo4j import GraphDatabase, Session, Driver, Result, TrustSystemCAs
 from neo4j.exceptions import Neo4jError
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class Neo4jConnection:
         password: str,
         database: str = "neo4j",
         encrypted: bool = False,
-        trust: str = "TRUST_SYSTEM_CA_SIGNED_CERTIFICATES",
+        trust=None,
         max_connection_lifetime: int = 3600,
     ):
         """
@@ -46,7 +46,11 @@ class Neo4jConnection:
             password: Database password
             database: Default database name (default: 'neo4j')
             encrypted: Whether to use encryption (default: False)
-            trust: Trust strategy for SSL/TLS
+            trust: Trust strategy for TLS connections. Can be:
+                - None (default, no verification)
+                - TrustSystemCAs() (verify using system CA certificates)
+                - TrustAll() (trust all certificates)
+                - TrustCustomCAs(path) (verify using custom CA certificates)
             max_connection_lifetime: Maximum connection lifetime in seconds
         """
         self.uri = uri
@@ -54,13 +58,23 @@ class Neo4jConnection:
         self.password = password
         self.database = database
         
+        # Default to TrustSystemCAs if encrypted is True but trust is not specified
+        if encrypted and trust is None:
+            trust = TrustSystemCAs()
+        
         try:
+            # Build driver config
+            driver_kwargs = {
+                "encrypted": encrypted,
+                "max_connection_lifetime": max_connection_lifetime,
+            }
+            if trust is not None:
+                driver_kwargs["trust"] = trust
+            
             self.driver = GraphDatabase.driver(
                 uri,
                 auth=(username, password),
-                encrypted=encrypted,
-                trust=trust,
-                max_connection_lifetime=max_connection_lifetime,
+                **driver_kwargs,
             )
             # Test connection
             self.driver.verify_connectivity()
@@ -238,20 +252,21 @@ class Neo4jQueryBuilder:
 
     @staticmethod
     def get_nodes_by_ids(
-        collection_label: str, node_ids: List[Union[int, str]]
+        node_ids: List[Union[int, str]], collection_label: Optional[str] = None
     ) -> tuple[str, Dict[str, Any]]:
         """
         Build query to retrieve nodes by their IDs.
         
         Args:
-            collection_label: Node label in Neo4j (e.g., 'Reactome', 'BioCyc')
             node_ids: List of node IDs to retrieve
+            collection_label: Optional node label in Neo4j (e.g., 'Reactome', 'BioCyc')
             
         Returns:
             Tuple of (query_string, parameters_dict)
         """
+        label_clause = f":{collection_label}" if collection_label else ""
         query = f"""
-        MATCH (n:{collection_label})
+        MATCH (n{label_clause})
         WHERE id(n) IN $node_ids
         RETURN n
         """
@@ -259,23 +274,24 @@ class Neo4jQueryBuilder:
 
     @staticmethod
     def get_nodes_by_property(
-        collection_label: str,
         property_name: str,
         property_values: List[Any],
+        collection_label: Optional[str] = None,
     ) -> tuple[str, Dict[str, Any]]:
         """
         Build query to retrieve nodes by property values.
         
         Args:
-            collection_label: Node label in Neo4j
             property_name: Name of the property to filter on
             property_values: List of values to match
+            collection_label: Optional node label in Neo4j
             
         Returns:
             Tuple of (query_string, parameters_dict)
         """
+        label_clause = f":{collection_label}" if collection_label else ""
         query = f"""
-        MATCH (n:{collection_label})
+        MATCH (n{label_clause})
         WHERE n.{property_name} IN $values
         RETURN n
         """
@@ -387,18 +403,19 @@ class Neo4jQueryBuilder:
         return query, {"source_ids": source_ids, "target_ids": target_ids}
 
     @staticmethod
-    def get_currency_nodes(collection_label: str) -> tuple[str, Dict[str, Any]]:
+    def get_currency_nodes(collection_label: Optional[str] = None) -> tuple[str, Dict[str, Any]]:
         """
         Build query to retrieve currency/secondary metabolite nodes.
         
         Args:
-            collection_label: Node label in Neo4j
+            collection_label: Optional node label in Neo4j
             
         Returns:
             Tuple of (query_string, parameters_dict)
         """
+        label_clause = f":{collection_label}" if collection_label else ""
         query = f"""
-        MATCH (n:{collection_label})
+        MATCH (n{label_clause})
         WHERE 'CurrencyMetabolite' IN labels(n) OR 'SecondaryMetabolite' IN labels(n)
         RETURN DISTINCT n
         """
@@ -409,23 +426,29 @@ class Neo4jQueryBuilder:
         """
         Return Cypher fragment to extract all nodes from paths.
         
+        Note: This returns a query fragment that should be used in a RETURN clause
+        after paths have been matched.
+        
         Args:
             paths_variable: Variable name for paths in query
             
         Returns:
-            Cypher RETURN clause fragment
+            Cypher RETURN clause fragment for extracting nodes
         """
-        return f"WITH collect(DISTINCT n) as nodes FROM {paths_variable} UNWIND nodes as node RETURN DISTINCT node"
+        return f"UNWIND nodes({paths_variable}) as node RETURN DISTINCT node"
 
     @staticmethod
     def extract_relationships_from_paths(paths_variable: str = "p") -> str:
         """
         Return Cypher fragment to extract all relationships from paths.
         
+        Note: This returns a query fragment that should be used in a RETURN clause
+        after paths have been matched.
+        
         Args:
             paths_variable: Variable name for paths in query
             
         Returns:
-            Cypher RETURN clause fragment
+            Cypher RETURN clause fragment for extracting relationships
         """
-        return f"WITH collect(DISTINCT r) as rels FROM {paths_variable} UNWIND rels as rel RETURN DISTINCT id(startNode(rel)) as source, id(endNode(rel)) as target, type(rel) as type"
+        return f"UNWIND relationships({paths_variable}) as rel RETURN DISTINCT id(startNode(rel)) as source, id(endNode(rel)) as target, type(rel) as type"

@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List
 
 from lifelike_gds.arango_network.database import Database, GraphSource
-from lifelike_gds.arango_network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 import logging
 import networkx as nx
 
@@ -126,7 +126,8 @@ class Biocyc(GraphSource):
         """
         tracegraph.add_nodes(node_query)
         tracegraph.add_rels(rel_query)
-        logging.info(nx.info(tracegraph.graph))
+        graph_info = f"Graph: nodes={tracegraph.graph.number_of_nodes()}, edges={tracegraph.graph.number_of_edges()}"
+        logging.info(graph_info)
         return tracegraph
 
     def load_graph_to_tracegraph(self, tracegraph, exclude_ndoes: List = None):
@@ -154,7 +155,8 @@ class Biocyc(GraphSource):
         """
         tracegraph.add_nodes(node_query, exclude_ids=exclude_ids)
         tracegraph.add_rels(rel_query, exclude_ids=exclude_ids)
-        logging.info(nx.info(tracegraph.graph))
+        graph_info = f"Graph: nodes={tracegraph.graph.number_of_nodes()}, edges={tracegraph.graph.number_of_edges()}"
+        logging.info(graph_info)
         return tracegraph
 
     def get_node_data_for_excel(self, node_ids:List[str]):

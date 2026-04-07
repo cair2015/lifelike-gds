@@ -9,10 +9,10 @@ import logging
 from typing import List, Dict, Any, Optional
 
 import pandas as pd
-from neo4j import Record
 
 from lifelike_gds.neo4j_network.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
-from lifelike_gds.neo4j_network.config_utils import read_config
+from lifelike_gds.utils.config_utils import read_config
+from lifelike_gds.network.graph_source import GraphSource as GraphSourceBase
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,8 @@ class Database:
 
     def __init__(
         self,
-        collection_label: str,
+        collection_label: Optional[str] = None,
         database: Optional[str] = None,
-        uri: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
     ):
         """
         Initialize Neo4j database connection.
@@ -44,7 +41,7 @@ class Database:
             NEO4J_DATABASE: Database name (default: neo4j)
         
         Args:
-            collection_label: Primary node label in Neo4j (e.g., 'Reactome')
+            collection_label: Optional primary node label in Neo4j (e.g., 'Reactome')
             database: Neo4j database name. If not provided, reads from NEO4J_DATABASE env var.
             uri: Neo4j connection URI. If not provided, reads from NEO4J_URI env var.
             username: Database username. If not provided, reads from NEO4J_USER env var.
@@ -60,14 +57,10 @@ class Database:
             config = read_config()
             neo4j_config = config.get("neo4j", {})
             
-            if not uri:
-                uri = neo4j_config.get("uri", "bolt://localhost:7687")
-            if not username:
-                username = neo4j_config.get("user", "neo4j")
-            if not password:
-                password = neo4j_config.get("password", "password")
-            if not database:
-                database = neo4j_config.get("database", "neo4j")
+            uri = neo4j_config.get("uri", "bolt://localhost:7687")
+            username = neo4j_config.get("user", "neo4j")
+            password = neo4j_config.get("password", "password")
+            database = database or neo4j_config.get("database", "neo4j")
         
         self.connection = Neo4jConnection(
             uri=uri,
@@ -192,7 +185,7 @@ class Database:
         Returns:
             List of node records
         """
-        query, params = Neo4jQueryBuilder.get_nodes_by_ids(self.collection_label, id_list)
+        query, params = Neo4jQueryBuilder.get_nodes_by_ids(id_list, self.collection_label)
         return self.run_query(query, **params)
 
     def get_nodes_by_attr(
@@ -213,7 +206,7 @@ class Database:
             List of node records
         """
         label = node_label or self.collection_label
-        query, params = Neo4jQueryBuilder.get_nodes_by_property(label, attr_name, attr_values)
+        query, params = Neo4jQueryBuilder.get_nodes_by_property(attr_name, attr_values, label)
         return self.run_query(query, **params)
 
     def get_currency_nodes(self) -> List[Dict[str, Any]]:
@@ -322,8 +315,7 @@ class Database:
             exclude_nodes: Optional nodes to exclude
             include_nodes: Optional nodes that must be included
         """
-        import networkx as nx
-        
+
         source_ids = [self._extract_id(n) for n in sources]
         target_ids = [self._extract_id(n) for n in targets]
         
@@ -389,10 +381,11 @@ class Database:
         raise ValueError(f"Cannot extract ID from node: {node}")
 
 
-class GraphSource:
+class GraphSource(GraphSourceBase):
     """
-    Abstract graph source providing database operations for network analysis.
+    Neo4j-specific graph source implementation.
     
+    Provides database operations for Neo4j-backed network analysis.
     This class acts as a bridge between Neo4j database operations and
     trace graph analysis.
     """
@@ -405,8 +398,7 @@ class GraphSource:
             database: Database instance for queries
             node_label_prop: Property name to use for node labels
         """
-        self.database = database
-        self.node_label_prop = node_label_prop
+        super().__init__(database, node_label_prop)
 
     @classmethod
     def get_node_name(cls, node: Dict[str, Any]) -> Optional[str]:
@@ -510,28 +502,33 @@ class GraphSource:
             exclude_currency: Whether to exclude currency metabolites
             exclude_secondary: Whether to exclude secondary metabolites
         """
+        label_clause = f":{self.database.collection_label}" if self.database.collection_label else ""
+        
+        # Build base query
         query = f"""
-        MATCH (n:{self.database.collection_label})
-        RETURN id(n) as node_id
+        MATCH (n{label_clause})
         """
         
         # Build node filters
         if exclude_currency or exclude_secondary:
-            query += " WHERE NOT ("
+            query += "WHERE NOT ("
             filters = []
             if exclude_currency:
                 filters.append("'CurrencyMetabolite' IN labels(n)")
             if exclude_secondary:
                 filters.append("'SecondaryMetabolite' IN labels(n)")
             query += " OR ".join(filters)
-            query += ")"
+            query += ")\n"
+        
+        # Add RETURN clause at the end
+        query += "RETURN id(n) as node_id"
         
         # Add nodes to trace graph
         tracegraph.add_nodes(query)
         
         # Get relationships
         rel_query = f"""
-        MATCH (n:{self.database.collection_label})-[r]->(m:{self.database.collection_label})
+        MATCH (n{label_clause})-[r]->(m{label_clause})
         RETURN id(n) as source, id(m) as target, type(r) as type
         """
         tracegraph.add_rels(rel_query)
@@ -557,8 +554,9 @@ class GraphSource:
         Returns:
             List of node data dictionaries
         """
+        label_clause = f":{self.database.collection_label}" if self.database.collection_label else ""
         query = f"""
-        MATCH (n:{self.database.collection_label})
+        MATCH (n{label_clause})
         WHERE id(n) IN $node_ids
         RETURN n
         """
