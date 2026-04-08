@@ -2,7 +2,7 @@ import os
 
 from lifelike_gds.network.inbetweenness_trace import InBetweennessTrace
 from lifelike_gds.network.radiate_trace import RadiateTrace
-from lifelike_gds.arango_network.reactome import *
+from lifelike_gds.arango_network.reactome_db import *
 from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 from lifelike_gds.network.trace_graph_utils import *
 

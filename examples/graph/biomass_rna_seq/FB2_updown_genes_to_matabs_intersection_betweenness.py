@@ -1,6 +1,6 @@
 import os
 
-from lifelike_gds.arango_network.biocyc import *
+from lifelike_gds.arango_network.biocyc_db import *
 from lifelike_gds.network.inbetweenness_trace import *
 from lifelike_gds.network.radiate_trace import *
 from lifelike_gds.network.trace_graph_utils import *

@@ -1,7 +1,7 @@
 import os
 
 from lifelike_gds.network.radiate_trace import RadiateTrace
-from lifelike_gds.arango_network.reactome import *
+from lifelike_gds.arango_network.reactome_db import *
 
 """
 get the shortest paths and highest influence paths from "PPARKA:RXRA Coactivator complex" to cluster2 cluster 4 in and out metabolites. 

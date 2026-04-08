@@ -198,7 +198,7 @@ def _serializable_formats(d):
 
 def serializable_node_link_data(G):
     # deep copy so we don't change the types in "G"
-    data = copy.deepcopy(nx.node_link_data(G))
+    data = copy.deepcopy(nx.node_link_data(G, edges="links"))
     _serializable_formats(data)
     return data
 
@@ -225,35 +225,20 @@ class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types taken from https://github.com/hmallen/numpyencoder"""
 
     def default(self, obj):
-        if isinstance(
-            obj,
-            (
-                np.int_,
-                np.intc,
-                np.intp,
-                np.int8,
-                np.int16,
-                np.int32,
-                np.int64,
-                np.uint8,
-                np.uint16,
-                np.uint32,
-                np.uint64,
-            ),
-        ):
+        if isinstance(obj, (np.integer,)):
 
             return int(obj)
 
-        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+        elif isinstance(obj, (np.floating,)):
             return float(obj)
 
-        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+        elif isinstance(obj, (np.complexfloating,)):
             return {"real": obj.real, "imag": obj.imag}
 
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
 
-        elif isinstance(obj, (np.bool_)):
+        elif isinstance(obj, (np.bool_,)):
             return bool(obj)
 
         elif isinstance(obj, (np.void)):

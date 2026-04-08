@@ -9,6 +9,7 @@ and uses NetworkX for algorithms.
 
 import logging
 import os.path
+import inspect
 from typing import Any, List, Optional, Set, Union
 from pathlib import Path
 
@@ -64,7 +65,20 @@ class TraceGraphNx:
             exclude_currency: Exclude currency metabolite nodes
             exclude_secondary: Exclude secondary metabolite nodes
         """
-        self.graphsource.initiate_trace_graph(self, exclude_currency, exclude_secondary)
+        initiate_trace_graph = self.graphsource.initiate_trace_graph
+        kwargs = {"exclude_currency": exclude_currency}
+        signature = inspect.signature(initiate_trace_graph)
+
+        if (
+            "exclude_secondary" in signature.parameters
+            or any(
+                parameter.kind == inspect.Parameter.VAR_KEYWORD
+                for parameter in signature.parameters.values()
+            )
+        ):
+            kwargs["exclude_secondary"] = exclude_secondary
+
+        initiate_trace_graph(self, **kwargs)
 
     def set_datadir(self, datadir: str) -> None:
         """
@@ -233,7 +247,8 @@ class TraceGraphNx:
         nodeset_nodes = set()
         node_sets = self.graph.graph.get("node_sets", {})
         for node_set in node_sets.values():
-            nodeset_nodes.update(node_set.get("nodes", set()))
+            # nodeset_nodes.update(node_set.get("nodes", set()))
+            nodeset_nodes.update(node_set)
         
         nodes.update(nodeset_nodes)
         self.graph = self.graph.keep(nodes)

@@ -1,5 +1,5 @@
 from lifelike_gds.network.radiate_trace import *
-from lifelike_gds.arango_network.reactome import *
+from lifelike_gds.arango_network.reactome_db import *
 
 NODE_SETS = ['Survivor and Non-Survivor', 'Survivor', 'Non-Survivor']
 """

@@ -25,7 +25,7 @@ def get_groups(trace_network):
 
     # make a pile of integers not already in use that we can assign to the unassigned groups
     unused_integers = np.arange(len(groups))
-    unused_integers = unused_integers[~np.in1d(unused_integers, groups)]
+    unused_integers = unused_integers[~np.isin(unused_integers, groups)]
 
     # zip stops at shortest iterable so it automatically ignores excess unused integers
     sorted_nodes = sorted(list(set(nodes[undef])))

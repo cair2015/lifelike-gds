@@ -2,7 +2,7 @@ import os
 import dotenv
 from pathlib import Path
 
-from lifelike_gds.arango_network.reactome import *
+from lifelike_gds.arango_network.reactome_db import *
 from lifelike_gds.network.shortest_paths_trace import ShortestPathTrace
 from lifelike_gds.utils import get_project_root
 
