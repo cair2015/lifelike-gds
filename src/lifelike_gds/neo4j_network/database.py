@@ -6,13 +6,13 @@ Neo4j database operations and enable modular network analysis.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from lifelike_gds.network.graph_source import GraphSource as GraphSourceBase
 from lifelike_gds.neo4j_network.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
 from lifelike_gds.utils.config_utils import read_config
-from lifelike_gds.network.graph_source import GraphSource as GraphSourceBase
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,10 @@ class Database:
         self,
         collection_label: Optional[str] = None,
         database: Optional[str] = None,
+        uri: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        encrypted: Optional[bool] = None,
     ):
         """
         Initialize Neo4j database connection.
@@ -51,23 +55,59 @@ class Database:
             KeyError: If required environment variables are not found or no parameters provided.
         """
         self.collection_label = collection_label
-        
-        # Load from config if not specified
+
         if not uri or not username or not password or not database:
-            config = read_config()
-            neo4j_config = config.get("neo4j", {})
-            
-            uri = neo4j_config.get("uri", "bolt://localhost:7687")
-            username = neo4j_config.get("user", "neo4j")
-            password = neo4j_config.get("password", "password")
-            database = database or neo4j_config.get("database", "neo4j")
-        
+            config = read_config("neo4j")
+            uri = uri or config["uri"]
+            username = username or config["user"]
+            password = password or config["password"]
+            database = database or config["database"]
+            if encrypted is None:
+                encrypted = config.get("encrypted", False)
+
         self.connection = Neo4jConnection(
             uri=uri,
             username=username,
             password=password,
             database=database,
+            encrypted=bool(encrypted),
         )
+
+    @staticmethod
+    def _normalize_node(node: Any) -> Dict[str, Any]:
+        if isinstance(node, dict):
+            if "id" in node:
+                return node
+            if len(node) == 1:
+                return Database._normalize_node(next(iter(node.values())))
+
+        try:
+            props = dict(node.items())
+        except Exception:
+            if isinstance(node, dict):
+                props = dict(node)
+            else:
+                raise TypeError(f"Unable to normalize Neo4j node {node!r}")
+
+        element_id = getattr(node, "element_id", None)
+        if element_id is None and isinstance(node, dict):
+            element_id = node.get("element_id") or node.get("id")
+        if element_id is not None:
+            props["id"] = str(element_id)
+            props.setdefault("element_id", str(element_id))
+            props.setdefault("_key", str(element_id))
+
+        labels = getattr(node, "labels", None)
+        if labels is not None:
+            props.setdefault("labels", list(labels))
+        return props
+
+    def _normalize_node_records(self, records: List[Dict[str, Any]], key: str = "n") -> List[Dict[str, Any]]:
+        nodes = []
+        for record in records:
+            value = record.get(key, record) if isinstance(record, dict) else record
+            nodes.append(self._normalize_node(value))
+        return nodes
 
     def close(self):
         """Close the database connection."""
@@ -175,7 +215,7 @@ class Database:
         """
         return self.run_query(query, **parameters)
 
-    def get_nodes_by_node_ids(self, id_list: List[int]) -> List[Dict[str, Any]]:
+    def get_nodes_by_node_ids(self, id_list: List[Any]) -> List[Dict[str, Any]]:
         """
         Retrieve nodes by their Neo4j IDs.
         
@@ -186,7 +226,7 @@ class Database:
             List of node records
         """
         query, params = Neo4jQueryBuilder.get_nodes_by_ids(id_list, self.collection_label)
-        return self.run_query(query, **params)
+        return self._normalize_node_records(self.run_query(query, **params))
 
     def get_nodes_by_attr(
         self,
@@ -207,7 +247,7 @@ class Database:
         """
         label = node_label or self.collection_label
         query, params = Neo4jQueryBuilder.get_nodes_by_property(attr_name, attr_values, label)
-        return self.run_query(query, **params)
+        return self._normalize_node_records(self.run_query(query, **params))
 
     def get_currency_nodes(self) -> List[Dict[str, Any]]:
         """
@@ -217,7 +257,7 @@ class Database:
             List of currency/secondary metabolite node records
         """
         query, params = Neo4jQueryBuilder.get_currency_nodes(self.collection_label)
-        return self.run_query(query, **params)
+        return self._normalize_node_records(self.run_query(query, **params))
 
     def get_shortest_path_len(
         self,
@@ -245,7 +285,7 @@ class Database:
         
         query = """
         MATCH (s), (t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
         MATCH p = shortestPath((s)-[*]->(t))
         RETURN s.displayName as sourceName, t.displayName as targetName, length(p) as shortestPathLen
         """
@@ -283,7 +323,7 @@ class Database:
         
         query = """
         MATCH (s), (t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
         MATCH p = allShortestPaths((s)-[*]->(t))
         RETURN p
         """
@@ -322,10 +362,10 @@ class Database:
         # Get all nodes in shortest paths
         node_query = """
         MATCH (s), (t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
         MATCH p = allShortestPaths((s)-[*]->(t))
         UNWIND nodes(p) as n
-        RETURN DISTINCT id(n) as node_id
+        RETURN DISTINCT elementId(n) as node_id
         """
         
         node_params = {
@@ -334,26 +374,26 @@ class Database:
         }
         
         node_data = self.get_dataframe(node_query, **node_params)
-        nodes = [int(n) for n in node_data["node_id"]]
+        nodes = list(node_data["node_id"])
         D.add_nodes_from(nodes)
         
         # Get relationships between these nodes
         rel_query = """
         MATCH (n)-[r]->(m)
-        WHERE id(n) IN $node_ids AND id(m) IN $node_ids
-        RETURN id(n) as source, id(m) as target, type(r) as type
+        WHERE elementId(n) IN $node_ids AND elementId(m) IN $node_ids
+        RETURN elementId(n) as source, elementId(m) as target, type(r) as type
         """
         
         rel_params = {"node_ids": nodes}
         rel_data = self.get_dataframe(rel_query, **rel_params)
         
         for _, row in rel_data.iterrows():
-            D.add_edge(int(row["source"]), int(row["target"]), label=row["type"])
+            D.add_edge(row["source"], row["target"], label=row["type"])
         
         logger.info(f"Added {len(nodes)} nodes and {len(rel_data)} edges to graph")
 
     @staticmethod
-    def _extract_id(node: Any) -> int:
+    def _extract_id(node: Any) -> Any:
         """
         Extract ID from a node object.
         
@@ -366,198 +406,24 @@ class Database:
             node: Node object or ID
             
         Returns:
-            Node ID as integer
+            Node ID as a backend-specific string or integer
         """
         if isinstance(node, dict):
+            if "element_id" in node:
+                return str(node["element_id"])
             if "id" in node:
-                return int(node["id"])
-            elif "element_id" in node:
-                return int(node["element_id"])
+                return str(node["id"])
+        elif hasattr(node, "element_id"):
+            return str(node.element_id)
         elif hasattr(node, "id"):
-            return int(node.id)
+            return str(node.id)
         elif isinstance(node, int):
+            return node
+        elif isinstance(node, str):
             return node
         
         raise ValueError(f"Cannot extract ID from node: {node}")
 
 
 class GraphSource(GraphSourceBase):
-    """
-    Neo4j-specific graph source implementation.
-    
-    Provides database operations for Neo4j-backed network analysis.
-    This class acts as a bridge between Neo4j database operations and
-    trace graph analysis.
-    """
-
-    def __init__(self, database: Database, node_label_prop: str = "displayName"):
-        """
-        Initialize graph source.
-        
-        Args:
-            database: Database instance for queries
-            node_label_prop: Property name to use for node labels
-        """
-        super().__init__(database, node_label_prop)
-
-    @classmethod
-    def get_node_name(cls, node: Dict[str, Any]) -> Optional[str]:
-        """
-        Extract node name/display name from node dict.
-        
-        Args:
-            node: Node record
-            
-        Returns:
-            Node display name if available
-        """
-        return node.get("displayName") or node.get("name")
-
-    @classmethod
-    def get_node_desc(cls, node: Dict[str, Any]) -> Optional[str]:
-        """
-        Extract node description from node dict.
-        
-        Args:
-            node: Node record
-            
-        Returns:
-            Node description if available
-        """
-        return node.get("description")
-
-    def set_nodes_description(self, neo4j_nodes: List[Dict[str, Any]], D) -> None:
-        """
-        Set node descriptions in graph from Neo4j nodes.
-        
-        Args:
-            neo4j_nodes: List of node records from Neo4j
-            D: NetworkX graph object
-        """
-        for node in neo4j_nodes:
-            node_id = node.get("id")
-            if node_id and node_id in D:
-                D.nodes[node_id]["description"] = self.get_node_desc(node)
-
-    def set_edges_description(self, neo4j_edges: List[Dict[str, Any]], D) -> None:
-        """
-        Set edge descriptions in graph from Neo4j edges.
-        
-        Args:
-            neo4j_edges: List of edge records from Neo4j
-            D: NetworkX graph object
-        """
-        # Implement edge description setting
-        pass
-
-    @classmethod
-    def set_edge_description(
-        cls,
-        D,
-        start_node: int,
-        end_node: int,
-        edge_type: str,
-        key: Optional[str] = None,
-    ) -> None:
-        """
-        Set description for a specific edge.
-        
-        Args:
-            D: NetworkX graph object
-            start_node: Source node ID
-            end_node: Target node ID
-            edge_type: Type of relationship
-            key: Optional edge key for MultiDiGraph
-        """
-        if D.has_edge(start_node, end_node):
-            if key and hasattr(D, "get_edge_data"):
-                edge_data = D.get_edge_data(start_node, end_node, key)
-            else:
-                edge_data = D.get_edge_data(start_node, end_node)
-            
-            if edge_data and isinstance(edge_data, dict):
-                edge_data["description"] = f"{edge_type} relationship"
-
-    def retrieve_node_properties(self, graph) -> None:
-        """
-        Retrieve and set node properties from Neo4j.
-        
-        Args:
-            graph: NetworkX graph object
-        """
-        # Load node details from database
-        pass
-
-    def initiate_trace_graph(
-        self,
-        tracegraph,
-        exclude_currency: bool = True,
-        exclude_secondary: bool = True,
-    ) -> None:
-        """
-        Initialize trace graph with data from Neo4j.
-        
-        Args:
-            tracegraph: TraceGraphNx instance
-            exclude_currency: Whether to exclude currency metabolites
-            exclude_secondary: Whether to exclude secondary metabolites
-        """
-        label_clause = f":{self.database.collection_label}" if self.database.collection_label else ""
-        
-        # Build base query
-        query = f"""
-        MATCH (n{label_clause})
-        """
-        
-        # Build node filters
-        if exclude_currency or exclude_secondary:
-            query += "WHERE NOT ("
-            filters = []
-            if exclude_currency:
-                filters.append("'CurrencyMetabolite' IN labels(n)")
-            if exclude_secondary:
-                filters.append("'SecondaryMetabolite' IN labels(n)")
-            query += " OR ".join(filters)
-            query += ")\n"
-        
-        # Add RETURN clause at the end
-        query += "RETURN id(n) as node_id"
-        
-        # Add nodes to trace graph
-        tracegraph.add_nodes(query)
-        
-        # Get relationships
-        rel_query = f"""
-        MATCH (n{label_clause})-[r]->(m{label_clause})
-        RETURN id(n) as source, id(m) as target, type(r) as type
-        """
-        tracegraph.add_rels(rel_query)
-
-    def load_graph_to_tracegraph(self, tracegraph, exclude_nodes=None) -> None:
-        """
-        Load full graph data to trace graph.
-        
-        Args:
-            tracegraph: TraceGraphNx instance
-            exclude_nodes: Optional nodes to exclude
-        """
-        # Implementation for full graph loading
-        pass
-
-    def get_node_data_for_excel(self, node_ids: List[int]) -> List[Dict[str, Any]]:
-        """
-        Retrieve node data for Excel export.
-        
-        Args:
-            node_ids: List of node IDs
-            
-        Returns:
-            List of node data dictionaries
-        """
-        label_clause = f":{self.database.collection_label}" if self.database.collection_label else ""
-        query = f"""
-        MATCH (n{label_clause})
-        WHERE id(n) IN $node_ids
-        RETURN n
-        """
-        return self.database.run_query(query, node_ids=node_ids)
+    """Marker base class for Neo4j-backed graph sources."""

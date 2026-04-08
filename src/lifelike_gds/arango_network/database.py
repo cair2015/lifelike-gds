@@ -1,21 +1,28 @@
 import logging
+from typing import Any, Dict, List, Optional
 
 import networkx as nx
-from typing import List, Dict, Any, Optional
-
-from lifelike_gds.utils.config_utils import read_config
-from lifelike_gds.network.graph_source import GraphSource as GraphSourceBase
 import pandas as pd
 from arango import ArangoClient
 
+from lifelike_gds.network.graph_source import GraphSource as GraphSourceBase
+from lifelike_gds.utils.config_utils import read_config
+
 class Database:
-    def __init__(self, collection, dbname=None):
+    def __init__(
+        self,
+        collection: str,
+        dbname: Optional[str] = None,
+        uri: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+    ):
         self.collection = collection
-        config = read_config('arango')
-        uri = config['uri']
-        username = config['user']
-        password = config['password']
-        dbname = config['dbname'] if dbname is None else dbname
+        config = read_config("arango")
+        uri = uri or config["uri"]
+        username = username or config["user"]
+        password = password or config["password"]
+        dbname = dbname or config["database"]
         self.driver = ArangoClient(hosts=uri, verify_override=False)
         self.db = self.driver.db(dbname, username=username, password=password)
         # Check if connection works
@@ -195,51 +202,4 @@ class Database:
 
 
 class GraphSource(GraphSourceBase):
-    """
-    ArangoDB-specific graph source implementation.
-    
-    Provides database operations for ArangoDB-backed network analysis.
-    """
-    
-    def __init__(self, database: Database, node_label_prop: str = 'displayName'):
-        super().__init__(database, node_label_prop)
-
-    @classmethod
-    def get_node_name(cls, node: Dict[str, Any]) -> Optional[str]:
-        """Extract node name from ArangoDB node record."""
-        return node.get(cls.node_label_prop) or node.get('name')
-
-    @classmethod
-    def get_node_desc(cls, node: Dict[str, Any]) -> Optional[str]:
-        """Extract node description from ArangoDB node record."""
-        return node.get('description')
-
-    def set_nodes_description(self, arango_nodes, D):
-        """Set node descriptions in graph from ArangoDB nodes."""
-        pass
-
-    def set_edges_description(self, arango_edges, D):
-        """Set edge descriptions in graph from ArangoDB edges."""
-        pass
-
-    @classmethod
-    def set_edge_description(cls, D, startNode, endNode, edgeType, key=None):
-        """Set description for a specific edge."""
-        pass
-
-    def retrieve_node_properties(self, graph):
-        """Retrieve and set node properties from ArangoDB."""
-        pass
-
-    def initiate_trace_graph(self, tracegraph, exclude_currency=True):
-        """Initialize trace graph with data from ArangoDB."""
-        pass
-
-    def load_graph_to_tracegraph(self, tracegraph, exclude_ndoes = None):
-        """Load full graph data to trace graph from ArangoDB."""
-        pass
-
-    def get_node_data_for_excel(self, node_ids: List[int]):
-        """Retrieve node data for Excel export from ArangoDB."""
-        pass
-
+    """Marker base class for ArangoDB-backed graph sources."""

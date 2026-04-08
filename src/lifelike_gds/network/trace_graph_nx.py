@@ -9,7 +9,7 @@ and uses NetworkX for algorithms.
 
 import logging
 import os.path
-from typing import List, Optional, Set, Union
+from typing import Any, List, Optional, Set, Union
 from pathlib import Path
 
 import networkx as nx
@@ -20,8 +20,6 @@ from lifelike_gds.network.graph_utils import MultiDirectedGraph, DirectedGraph
 from lifelike_gds.network.trace_utils import add_trace_network, get_traced_nodes
 from lifelike_gds.network.trace_graph_utils import write_sankey_file, write_cytoscape_file
 from lifelike_gds.network.collection_utils import dict_max_ties, dict_min_ties
-from lifelike_gds.utils import get_id
-
 logger = logging.getLogger(__name__)
 
 
@@ -92,7 +90,7 @@ class TraceGraphNx:
         node_data = self.graphsource.database.get_dataframe(node_query, **parameters)
         
         if not node_data.empty:
-            nodes = [int(n) for n in node_data["node_id"]]
+            nodes = list(node_data["node_id"])
             self.graph.add_nodes_from(nodes)
             logger.info(f"Added {len(nodes)} nodes to graph")
 
@@ -109,8 +107,8 @@ class TraceGraphNx:
         rel_data = self.graphsource.database.get_dataframe(rel_query, **parameters)
         
         for _, row in rel_data.iterrows():
-            source = int(row["source"])
-            target = int(row["target"])
+            source = row["source"]
+            target = row["target"]
             rel_type = row["type"]
             self.graph.add_edge(source, target, label=rel_type)
         
@@ -124,9 +122,13 @@ class TraceGraphNx:
             paths: List of path objects from database
         """
         for p in paths:
-            self.graph.add_nodes_from([get_id(n) for n in p.nodes])
+            self.graph.add_nodes_from([self.graphsource.get_node_id(n) for n in p.nodes])
             for r in p.relationships:
-                self.graph.add_edge(get_id(r.start_node), get_id(r.end_node), label=r.type)
+                self.graph.add_edge(
+                    self.graphsource.get_node_id(r.start_node),
+                    self.graphsource.get_node_id(r.end_node),
+                    label=r.type,
+                )
 
     def set_node_set(self, key: str, nodes: Set[int], **meta) -> None:
         """
@@ -143,17 +145,21 @@ class TraceGraphNx:
         """
         Create node set from database node records.
         
-        Uses get_id() utility to extract node IDs from database objects.
+        Uses the active graph source to extract node IDs from database objects.
         
         Args:
             nodes: List of database node records/objects
             name: Name for the node set
             desc: Description for the node set
         """
-        node_ids = [get_id(n) for n in nodes]
+        node_ids = [self.graphsource.get_node_id(n) for n in nodes]
         node_set = set(node_ids).intersection(self.graph.nodes)
         self.graph.set_node_set(name, node_set, name=name, description=desc)
         logger.info(f"Created node set '{name}' with {len(node_set)} nodes")
+
+    def set_node_set_from_arango_nodes(self, nodes: List, name: str, desc: str) -> None:
+        """Backward-compatible alias kept for older notebooks and examples."""
+        self.set_node_set_from_db_nodes(nodes, name, desc)
 
     def set_node_set_for_node(self, node) -> str:
         """
@@ -165,7 +171,7 @@ class TraceGraphNx:
         Returns:
             Node set key
         """
-        node_id = get_id(node)
+        node_id = self.graphsource.get_node_id(node)
         key = f"node_{node_id}"
         name = node.get('displayName') or node.get('name', str(node_id))
         
@@ -205,7 +211,7 @@ class TraceGraphNx:
         """
         return self.graph.nodes[node_id].get(self.graphsource.node_label_prop, str(node_id))
 
-    def load_node_detail_from_db(self, nodes: List[int]) -> None:
+    def load_node_detail_from_db(self, nodes: List[Any]) -> None:
         """
         Load detailed node properties from database.
         
@@ -244,7 +250,7 @@ class TraceGraphNx:
         self.graphsource.load_node_details(node_ids, self.graph)
         self.graphsource.load_edge_details(self.graph)
 
-    def get_nodes_detail_as_dataframe(self, node_ids: List[int]) -> pd.DataFrame:
+    def get_nodes_detail_as_dataframe(self, node_ids: List[Any]) -> pd.DataFrame:
         """
         Get node properties as DataFrame.
         

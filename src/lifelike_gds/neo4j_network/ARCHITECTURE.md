@@ -164,8 +164,8 @@ DATA FLOW EXAMPLES
 Example 1: Creating and Analyzing a Radiate Graph
 --------------------------------------------------
 
-from lifelike_gds.neo4j_network import Database, GraphSource
-from lifelike_gds.neo4j_network.radiate_trace import RadiateTrace
+from lifelike_gds.neo4j_network import Database, Reactome
+from lifelike_gds.network.radiate_trace import RadiateTrace
 
 # 1. Initialize database connection
 db = Database(
@@ -176,7 +176,7 @@ db = Database(
 )
 
 # 2. Create graph source
-graph_source = GraphSource(db, node_label_prop="displayName")
+graph_source = Reactome(db, node_label_prop="displayName")
 
 # 3. Initialize trace graph
 trace = RadiateTrace(graph_source)
@@ -213,7 +213,7 @@ trace.export_to_file("analysis_graph.graphml")
 Example 2: Finding Shortest Paths
 -----------------------------------
 
-from lifelike_gds.neo4j_network.shortest_paths_trace import ShortestPathTrace
+from lifelike_gds.network.shortest_paths_trace import ShortestPathTrace
 
 trace = ShortestPathTrace(graph_source)
 trace.init_default_graph()
@@ -270,7 +270,7 @@ To add new analysis types (e.g., Betweenness Centrality):
 
 4. Example structure:
 
-   from lifelike_gds.neo4j_network.trace_graph_nx import TraceGraphNx
+   from lifelike_gds.network.trace_graph_nx import TraceGraphNx
    
    class BetweennessTrace(TraceGraphNx):
        def __init__(self, graphsource):
@@ -292,13 +292,14 @@ To test the neo4j_network module:
 2. Load test data (create nodes and relationships)
 
 3. Test basic functionality:
-   from lifelike_gds.neo4j_network import Database, GraphSource
-   db = Database("TestCollection")
+   from lifelike_gds.neo4j_network import Database, Reactome
+   db = Database(collection_label="TestCollection")
+   graph_source = Reactome(db)
    assert db.connection is not None
 
 4. Test query builders:
    from lifelike_gds.neo4j_network.neo4j_utils import Neo4jQueryBuilder
-   query, params = Neo4jQueryBuilder.get_nodes_by_ids("TestLabel", [1, 2, 3])
+   query, params = Neo4jQueryBuilder.get_nodes_by_ids([1, 2, 3], "TestLabel")
    assert "WHERE id(n) IN" in query
 
 5. Test trace analysis:

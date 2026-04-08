@@ -155,7 +155,9 @@ class Neo4jConnection:
         try:
             with self.driver.session(database=db) as session:
                 result = session.run(query, parameters)
-                records = [record.data() for record in result]
+                # Preserve Neo4j Node/Relationship/Path objects so callers can
+                # still access metadata such as ``element_id`` during normalization.
+                records = [dict(record.items()) for record in result]
                 return records
         except Neo4jError as e:
             logger.error(f"Query failed: {e}\nQuery: {query}")
@@ -267,7 +269,7 @@ class Neo4jQueryBuilder:
         label_clause = f":{collection_label}" if collection_label else ""
         query = f"""
         MATCH (n{label_clause})
-        WHERE id(n) IN $node_ids
+        WHERE elementId(n) IN $node_ids
         RETURN n
         """
         return query, {"node_ids": node_ids}
@@ -321,8 +323,8 @@ class Neo4jQueryBuilder:
         
         query = f"""
         MATCH (s)-[r{rel_filter}]->(t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
-        RETURN id(s) as source, id(t) as target, type(r) as type, properties(r) as properties
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
+        RETURN elementId(s) as source, elementId(t) as target, type(r) as type, properties(r) as properties
         """
         return query, {"source_ids": source_ids, "target_ids": target_ids}
 
@@ -358,7 +360,7 @@ class Neo4jQueryBuilder:
         
         query = f"""
         MATCH (s), (t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
         MATCH p = shortestPath((s)-[{rel_filter}{depth_constraint}]->(t))
         RETURN p
         """
@@ -396,7 +398,7 @@ class Neo4jQueryBuilder:
         
         query = f"""
         MATCH (s), (t)
-        WHERE id(s) IN $source_ids AND id(t) IN $target_ids
+        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
         MATCH p = allShortestPaths((s)-[{rel_filter}{depth_constraint}]->(t))
         RETURN p
         """
@@ -451,4 +453,4 @@ class Neo4jQueryBuilder:
         Returns:
             Cypher RETURN clause fragment for extracting relationships
         """
-        return f"UNWIND relationships({paths_variable}) as rel RETURN DISTINCT id(startNode(rel)) as source, id(endNode(rel)) as target, type(rel) as type"
+        return f"UNWIND relationships({paths_variable}) as rel RETURN DISTINCT elementId(startNode(rel)) as source, elementId(endNode(rel)) as target, type(rel) as type"

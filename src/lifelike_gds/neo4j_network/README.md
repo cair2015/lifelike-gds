@@ -41,11 +41,11 @@ The `neo4j_network` module provides a complete Neo4j-based implementation for ne
 
 ```python
 # 1. Initialize database connection
-from lifelike_gds.neo4j_network import Database, GraphSource
-from lifelike_gds.neo4j_network.radiate_trace import RadiateTrace
+from lifelike_gds.neo4j_network import Database, Reactome
+from lifelike_gds.network.radiate_trace import RadiateTrace
 
 db = Database(collection_label="Reactome")
-graph_source = GraphSource(db)
+graph_source = Reactome(db)
 
 # 2. Create analysis
 trace = RadiateTrace(graph_source)
@@ -129,28 +129,28 @@ trace.export_pagerank_data("sources", "analysis.xlsx")
 - ✓ ArangoDB connection management
 - ✓ AQL query execution
 - ✓ Bridges ArangoDB → NetworkX
-- ✓ Specific analyses (radiate, paths, etc.)
+- ✓ Database/domain adapters only
 
 ### neo4j_network/ (Neo4j Implementation) - NEW
 - ✓ Neo4j connection management
 - ✓ Cypher query execution
 - ✓ Bridges Neo4j → NetworkX
-- ✓ Specific analyses (radiate, paths, etc.)
-- ✓ Same interface as arango_network for compatibility
+- ✓ Database/domain adapters only
+- ✓ Uses shared analysis code from `lifelike_gds.network`
 
 ## Extending the Module
 
 ### Add New Analysis Type
 
 1. Create new file in `neo4j_network/`
-2. Inherit from `TraceGraphNx`
+2. Inherit from `TraceGraphNx` in `lifelike_gds.network`
 3. Implement analysis-specific methods
 4. Add utilities to `trace_graph_utils.py` if needed
 5. Update `__init__.py`
 
 Example:
 ```python
-from lifelike_gds.neo4j_network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 class MyAnalysis(TraceGraphNx):
     def __init__(self, graphsource):
@@ -177,20 +177,20 @@ To migrate existing code from arango_network:
 
 ```python
 # OLD
-from lifelike_gds.arango_network import Database, GraphSource
-from lifelike_gds.arango_network.radiate_trace import RadiateTrace
+from lifelike_gds.arango_network import Database, Reactome
+from lifelike_gds.network.radiate_trace import RadiateTrace
 
 # NEW
-from lifelike_gds.neo4j_network import Database, GraphSource
-from lifelike_gds.neo4j_network.radiate_trace import RadiateTrace
+from lifelike_gds.neo4j_network import Database, Reactome
+from lifelike_gds.network.radiate_trace import RadiateTrace
 
-# Rest of code remains largely the same!
+# Analysis imports stay the same; only the database adapter changes.
 ```
 
 ## Files of Interest for Further Development
 
-- `trace_graph_utils.py` - Add more graph algorithms here
-- `trace_graph_nx.py` - Add graph loading/management methods
+- `../network/trace_graph_utils.py` - Add more graph algorithms here
+- `../network/trace_graph_nx.py` - Add graph loading/management methods
 - `neo4j_utils.py` - Add Neo4j-specific query patterns
 - `config.yml` - Customize connection settings
 
