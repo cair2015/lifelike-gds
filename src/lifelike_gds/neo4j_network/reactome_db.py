@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pprint import pformat
 from typing import List, Optional
 
 from lifelike_gds.network.reactome import (
@@ -113,53 +114,73 @@ class ReactomeDB(Database):
         logger.info("%s chebi_ids matched to %s reference nodes", len(chebi_ids), len(nodes))
         return nodes
 
-    def get_trace_graph_data(
-        self,
+    @staticmethod
+    def _render_where_clause(filters: List[str]) -> str:
+        """Render a Cypher ``WHERE`` clause from a list of filter expressions."""
+        return f"WHERE {' AND '.join(filters)}" if filters else ""
+
+    @staticmethod
+    def _build_trace_graph_filters(
         exclude_secondary_metabolites: bool = True,
-        exclude_secondary: bool = True,
         exclude_nodes: Optional[List[str]] = None,
-    ):
-        label_clause = f":{self.collection_label}" if self.collection_label else ""
-        rel_type_clause = "|".join(REACTOME_TRACE_RELS)
-        node_filters = []
-        rel_filters = []
+    ) -> List[str]:
+        """Build filter expressions shared by trace graph projection queries."""
+        filters: List[str] = []
 
         if exclude_secondary_metabolites:
-            node_filters.append(f"NOT '{SECONDARY_LABEL}' IN labels(n)")
-            rel_filters.extend(
+            filters.extend(
                 [
                     f"NOT '{SECONDARY_LABEL}' IN labels(n)",
                     f"NOT '{SECONDARY_LABEL}' IN labels(m)",
                 ]
             )
-        if exclude_secondary:
-            rel_filters.append("coalesce(r.secondary, false) = false")
         if exclude_nodes:
-            node_filters.append("NOT elementId(n) IN $exclude_ids")
-            rel_filters.extend(
+            filters.extend(
                 ["NOT elementId(n) IN $exclude_ids", "NOT elementId(m) IN $exclude_ids"]
             )
 
-        node_where = f"WHERE {' AND '.join(node_filters)}" if node_filters else ""
-        rel_where = f"WHERE {' AND '.join(rel_filters)}" if rel_filters else ""
+        return filters
+
+    @classmethod
+    def build_trace_graph_projection_queries(
+        cls,
+        collection_label: str = "",
+        exclude_secondary_metabolites: bool = True,
+        exclude_nodes: Optional[List[str]] = None,
+    ) -> tuple[str, str, dict]:
+        """Return projection queries for a provided label without a DB connection."""
+        label_clause = f":{collection_label}" if collection_label else ""
+        rel_type_clause = "|".join(REACTOME_TRACE_RELS)
+        filters = cls._build_trace_graph_filters(
+            exclude_secondary_metabolites=exclude_secondary_metabolites,
+            exclude_nodes=exclude_nodes,
+        )
+        where_clause = cls._render_where_clause(filters)
 
         node_query = f"""
-        MATCH (n{label_clause})
-        {node_where}
-        WITH n
-        MATCH (n)-[r:{rel_type_clause}]->()
-        RETURN DISTINCT elementId(n) AS node_id
-        UNION
-        MATCH ()-[r:{rel_type_clause}]->(n{label_clause})
-        {node_where}
-        RETURN DISTINCT elementId(n) AS node_id
+        MATCH (n{label_clause})-[r:{rel_type_clause}]->(m{label_clause})
+        {where_clause}
+        UNWIND [n, m] AS x
+        RETURN DISTINCT elementId(x) AS node_id
         """
         rel_query = f"""
         MATCH (n{label_clause})-[r:{rel_type_clause}]->(m{label_clause})
-        {rel_where}
+        {where_clause}
         RETURN elementId(n) AS source, elementId(m) AS target, type(r) AS type
         """
         params = {"exclude_ids": exclude_nodes} if exclude_nodes else {}
+        return node_query, rel_query, params
+
+    def get_trace_graph_data(
+        self,
+        exclude_secondary_metabolites: bool = True,
+        exclude_nodes: Optional[List[str]] = None,
+    ):
+        node_query, rel_query, params = self.build_trace_graph_projection_queries(
+            collection_label=self.collection_label,
+            exclude_secondary_metabolites=exclude_secondary_metabolites,
+            exclude_nodes=exclude_nodes,
+        )
         return self.get_dataframe(node_query, **params), self.get_dataframe(rel_query, **params)
 
     def get_node_data_for_excel(self, node_ids: List[str]):
@@ -183,6 +204,56 @@ class ReactomeDB(Database):
         return self.get_dataframe(query, node_ids=node_ids)
 
 
+def print_trace_graph_projection_queries(
+    collection_label: str = "",
+    scenarios: Optional[List[dict]] = None,
+) -> None:
+    """Print projection queries for a few common filter combinations.
+
+    Args:
+        collection_label: Optional node label to include in the projection.
+        scenarios: Optional list of scenario dicts. Each dict may contain:
+            ``name``, ``exclude_secondary_metabolites``, and ``exclude_nodes``.
+    """
+    if scenarios is None:
+        scenarios = [
+            {
+                "name": "default_filters",
+                "exclude_secondary_metabolites": True,
+                "exclude_nodes": None,
+            },
+            {
+                "name": "include_secondary_metabolites",
+                "exclude_secondary_metabolites": False,
+                "exclude_nodes": None,
+            },
+            {
+                "name": "exclude_specific_nodes",
+                "exclude_secondary_metabolites": True,
+                "exclude_nodes": ["4:demo-source", "4:demo-target"],
+            },
+        ]
+
+    for scenario in scenarios:
+        name = scenario.get("name", "unnamed_scenario")
+        node_query, rel_query, params = ReactomeDB.build_trace_graph_projection_queries(
+            collection_label=collection_label,
+            exclude_secondary_metabolites=scenario.get(
+                "exclude_secondary_metabolites",
+                True,
+            ),
+            exclude_nodes=scenario.get("exclude_nodes"),
+        )
+        print(f"=== {name} ===")
+        print(f"collection_label={collection_label!r}")
+        print(f"params={pformat(params)}")
+        print("node_query:")
+        print(node_query.strip())
+        print("rel_query:")
+        print(rel_query.strip())
+        print()
+
+
 __all__ = [
     "ALLOWED_NODE_ENTITY_TYPES",
     "EDGE_DESC_DICT",
@@ -193,3 +264,7 @@ __all__ = [
     "SECONDARY_CHEMS",
     "SECONDARY_LABEL",
 ]
+
+
+if __name__ == "__main__":
+    print_trace_graph_projection_queries()

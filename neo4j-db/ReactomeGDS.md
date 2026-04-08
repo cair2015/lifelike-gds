@@ -513,6 +513,91 @@ SET n.name = n.synonyms[0];
 ```
 
 ---
+### Changelog-0400: Label Secondary Metabolites
+
+This changeset labels a curated set of common secondary chemicals with the `SecondaryMetabolite` label so they can be excluded from graph projections and trace analysis when needed.
+
+You can apply the label to all `PhysicalEntity` nodes or restrict it to `SimpleEntity` nodes only. Note that `NAD(P)+`, `NAD(P)H`, and `Ub` are not `SimpleEntity` nodes, so restricting the operation to `SimpleEntity` will exclude them.
+
+#### 4.17: Define the Secondary Chemical List
+
+Define the list of display names that should be treated as secondary metabolites:
+
+```cypher
+:param SECONDARY_CHEMS => [
+  "3',5'-ADP",
+  "ADP",
+  "AMP",
+  "ATP",
+  "CO",
+  "CO2",
+  "Ca2+",
+  "Cl-",
+  "CoA-SH",
+  "FAD",
+  "FADH2",
+  "GDP",
+  "GTP",
+  "H+",
+  "H2O",
+  "H2O2",
+  "HCO3-",
+  "K+",
+  "NAD(P)+",
+  "NAD(P)H",
+  "NAD+",
+  "NADH",
+  "NADP+",
+  "NADPH",
+  "NH3",
+  "NH4+",
+  "Na+",
+  "O2",
+  "O2.-",
+  "PAP",
+  "PPi",
+  "PPi(3-)",
+  "Pi",
+  "UDP",
+  "Ub",
+  "adenosine 5'-monophosphate",
+  "phosphate"
+];
+```
+
+#### 4.18: Count Matching Secondary Chemicals
+
+Check how many `PhysicalEntity` nodes match each configured chemical name before applying labels:
+
+```cypher
+UNWIND $SECONDARY_CHEMS AS chem
+OPTIONAL MATCH (n:PhysicalEntity)
+WHERE n.displayName = chem
+RETURN chem, count(n) AS node_count
+ORDER BY chem;
+```
+
+#### 4.19: Label Matching Physical Entities
+
+Apply the `SecondaryMetabolite` label to all matching `PhysicalEntity` nodes:
+
+```cypher
+MATCH (n:PhysicalEntity)
+WHERE n.displayName IN $SECONDARY_CHEMS
+SET n:SecondaryMetabolite
+RETURN count(n) AS labeled_nodes;
+```
+
+**Optional variant:** Restrict labeling to `SimpleEntity` nodes only:
+
+```cypher
+MATCH (n:SimpleEntity)
+WHERE n.displayName IN $SECONDARY_CHEMS
+SET n:SecondaryMetabolite
+RETURN count(n) AS labeled_nodes;
+```
+
+---
 
 ## Summary of Changes by Changelog
 
@@ -522,6 +607,7 @@ SET n.name = n.synonyms[0];
 | 0100 | (No changes - checkpoint) |
 | 0200 | Add synonym nodes and assign entity type labels |
 | 0300 | Standardize naming conventions across entity types |
+| 0400 | Label secondary metabolites for optional exclusion during analysis |
 
 ---
 

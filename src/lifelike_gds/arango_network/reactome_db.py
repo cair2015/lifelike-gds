@@ -121,10 +121,8 @@ class ReactomeDB(Database):
     def get_trace_graph_data(
         self,
         exclude_secondary_metabolites: bool = True,
-        exclude_secondary: bool = True,
         exclude_nodes: Optional[List[int]] = None,
     ):
-        del exclude_secondary
         exclude_ids = [get_id(node) for node in exclude_nodes] if exclude_nodes else []
         node_lists_query = ",".join(
             f"""

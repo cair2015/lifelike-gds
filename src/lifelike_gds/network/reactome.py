@@ -164,11 +164,9 @@ class Reactome(GraphSource):
         self,
         tracegraph: Any,
         exclude_currency: bool = True,
-        exclude_secondary: bool = True,
     ) -> None:
         node_rows, rel_rows = self.database.get_trace_graph_data(
             exclude_secondary_metabolites=exclude_currency,
-            exclude_secondary=exclude_secondary,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
         logger.info(
@@ -184,7 +182,6 @@ class Reactome(GraphSource):
     ) -> None:
         node_rows, rel_rows = self.database.get_trace_graph_data(
             exclude_secondary_metabolites=False,
-            exclude_secondary=False,
             exclude_nodes=exclude_nodes,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
