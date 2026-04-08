@@ -1,4 +1,0 @@
-arango:
-  uri: https://arangodb.lifelike.bio:8530
-  dbname: reactome_indexed_3
-

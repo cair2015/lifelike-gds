@@ -893,45 +893,6 @@ wheels = [
 ]
 
 [[package]]
-name = "lifelike-gds"
-version = "0.2.0"
-source = { editable = "." }
-dependencies = [
-    { name = "dotenv" },
-    { name = "neo4j" },
-    { name = "networkx" },
-    { name = "numpy" },
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "python-arango" },
-    { name = "scipy" },
-    { name = "simplejson" },
-    { name = "xlsxwriter" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "jupyter" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "dotenv", specifier = ">=0.9.9" },
-    { name = "neo4j", specifier = ">=6.1.0" },
-    { name = "networkx", specifier = ">=3.6.1" },
-    { name = "numpy", specifier = ">=2.4.4" },
-    { name = "openpyxl", specifier = ">=3.1.5" },
-    { name = "pandas", specifier = ">=3.0.2" },
-    { name = "python-arango", specifier = ">=7.0.0" },
-    { name = "scipy", specifier = ">=1.17.1" },
-    { name = "simplejson", specifier = ">=3.20.2" },
-    { name = "xlsxwriter", specifier = ">=3.2.9" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "jupyter", specifier = ">=1.1.1" }]
-
-[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1327,6 +1288,43 @@ wheels = [
 ]
 
 [[package]]
+name = "pathway-graphx"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "dotenv" },
+    { name = "neo4j" },
+    { name = "networkx" },
+    { name = "numpy" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "simplejson" },
+    { name = "xlsxwriter" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "jupyter" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "neo4j", specifier = ">=6.1.0" },
+    { name = "networkx", specifier = ">=3.6.1" },
+    { name = "numpy", specifier = ">=2.4.4" },
+    { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "pandas", specifier = ">=3.0.2" },
+    { name = "scipy", specifier = ">=1.17.1" },
+    { name = "simplejson", specifier = ">=3.20.2" },
+    { name = "xlsxwriter", specifier = ">=3.2.9" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "jupyter", specifier = ">=1.1.1" }]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1430,31 +1428,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
-]
-
-[[package]]
-name = "pyjwt"
-version = "2.12.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c2/27/a3b6e5bf6ff856d2509292e95c8f57f0df7017cf5394921fc4e4ef40308a/pyjwt-2.12.1.tar.gz", hash = "sha256:c74a7a2adf861c04d002db713dd85f84beb242228e671280bf709d765b03672b", size = 102564, upload-time = "2026-03-13T19:27:37.25Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/7a/8dd906bd22e79e47397a61742927f6747fe93242ef86645ee9092e610244/pyjwt-2.12.1-py3-none-any.whl", hash = "sha256:28ca37c070cad8ba8cd9790cd940535d40274d22f80ab87f3ac6a713e6e8454c", size = 29726, upload-time = "2026-03-13T19:27:35.677Z" },
-]
-
-[[package]]
-name = "python-arango"
-version = "8.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-    { name = "pyjwt" },
-    { name = "requests" },
-    { name = "requests-toolbelt" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/7a/e5a09446f8e0ca69269bbb5ddefcdfbdcfc8cfb019de382f70e4ca899170/python_arango-8.3.1.tar.gz", hash = "sha256:38d3c1f5173c99fe3c17b386963d441c96b0d38dc111353eebddbf9088459cdd", size = 154810, upload-time = "2026-03-23T06:01:11.472Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/78/e60b1b8bc8d78908c849dd320d683be3d92bf3eb7f3396a7ffd53ba9ea71/python_arango-8.3.1-py3-none-any.whl", hash = "sha256:964012b3a239bddaa6ca9851659bf74817128fdeab6fcb6e5abef0f6b817a536", size = 116245, upload-time = "2026-03-23T06:01:10.072Z" },
 ]
 
 [[package]]
@@ -1656,18 +1629,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5f/a4/98b9c7c6428a668bf7e42ebb7c79d576a1c3c1e3ae2d47e674b468388871/requests-2.33.1.tar.gz", hash = "sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517", size = 134120, upload-time = "2026-03-30T16:09:15.531Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/8e/7540e8a2036f79a125c1d2ebadf69ed7901608859186c856fa0388ef4197/requests-2.33.1-py3-none-any.whl", hash = "sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a", size = 64947, upload-time = "2026-03-30T16:09:13.83Z" },
-]
-
-[[package]]
-name = "requests-toolbelt"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6", size = 206888, upload-time = "2023-05-01T04:11:33.229Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06", size = 54481, upload-time = "2023-05-01T04:11:28.427Z" },
 ]
 
 [[package]]
