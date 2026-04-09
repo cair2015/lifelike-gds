@@ -102,22 +102,19 @@ def add_trace_network(
         if undirected:
             raise NotImplementedError
         trace_network["method"] = f"min(sum({minsum}))"
-        # logging.info(f"Finding minsum paths from {sources_key} to {targets_key}")
         node_paths = all_node_minsum_paths(D, sources, targets, minsum, n_edges=n_edges)
     elif maxsum is not None:
         method = maxsum
         if undirected:
             raise NotImplementedError
         trace_network["method"] = f"max(sum({maxsum}))"
-        # logging.info(f"Finding maxsum paths from {sources_key} to {targets_key}")
         node_paths = all_node_maxsum_paths(D, sources, targets, maxsum, n_edges=n_edges)
     else:
         method = weight
         if weight is None:
-            trace_network["method"] = "min(length)"  # normal shortest distance
+            trace_network["method"] = "min(length)"
         else:
             trace_network["method"] = f"min(sum({weight}))"
-        # logging.info(f"Finding shortest paths from {sources_key} to {targets_key}")
         node_paths = get_shortest_paths_plus_n(
             D, sources, targets, n=shortest_paths_plus_n, weight=weight
         )
@@ -149,26 +146,16 @@ def add_trace_network(
     message.append(f"Method={trace_network['method']}.")
 
     if default_sizing is None:
-        # look for one with name corresponding to shortest path method
         if method in D.graph.get("sizing", {}):
             default_sizing = method
-            # logging.info(
-            #     f'Setting default sizing for trace network to weighting match "{method}"'
-            # )
         elif method is not None:
-            # make one possibly copying meta from node property
             D.set_sizing(method)
-            # logging.info(
-            #     f'Setting default sizing for trace network to new sizing definition "{method}"'
-            # )
             default_sizing = method
 
-    # there should now be one except if the method is shortest path
     if default_sizing is not None:
         trace_network["default_sizing"] = default_sizing
         message.append(f"Default sizing={default_sizing}.")
 
-    # with undirected we can walk edges against the direction so we should make sure to list them in the right direction
     if undirected:
         edges = [get_path_directed_edges(D, p) for p in node_paths]
     else:
@@ -182,12 +169,10 @@ def add_trace_network(
 
     traces = {}
     for p, es in zip(node_paths, edges):
-        # for a single trace we have a single start and end point but there can be multiple node paths to list
         trace = traces.setdefault((p[0], p[-1]), {})
         trace.setdefault("node_paths", []).append(p)
         trace.setdefault("edges", set()).update(es)
 
-    # we can't use tuple as key in json so let's be consistent
     trace_network["traces"] = []
     for (source, target), trace in traces.items():
         trace["source"] = source
@@ -200,6 +185,7 @@ def add_trace_network(
     else:
         logging.warning("No traces found.")
         return None, len(node_paths)
+
 
 def get_traced_edges(D):
     return set(_get_traced_edges(D))
@@ -217,9 +203,8 @@ def _get_traced_edges(D):
                 yield e
             if "detail_edges" in t:
                 for e in t["detail_edges"]:
-                    yield e[
-                        :2
-                    ]  # skip the edge props that is currently the last element of the tuple
+                    yield e[:2]
+
 
 def get_traced_nodes(D):
     return set(_get_traced_nodes(D))
@@ -262,7 +247,6 @@ def get_trace_detail_graphs(D):
             _D = Ds[(source, target)] = D.__class__()
             _D.add_nodes_from([(n, D.nodes[n]) for e in detail_edges for n in e[:2]])
             _D.add_edges_from(detail_edges)
-            # add graph properties
             _D.name = D.name
             _D.graph["description"] = "\n\n".join(
                 d.get("description", "") for d in [D.graph, tn, t]
@@ -272,28 +256,28 @@ def get_trace_detail_graphs(D):
             node_sets["target"] = {target}
     return Ds
 
+
 def link_index(data):
     """
     Use indexing in "link" list instead of (u, v) or (u, v, k)
     :param data: node_link_data dict representation of graph
     :return:
     """
+    link_key = "links" if "links" in data else "edges"
     if data["multigraph"]:
         edge2index = {
-            (l["source"], l["target"], l["key"]): i for i, l in enumerate(data["links"])
+            (l["source"], l["target"], l["key"]): i
+            for i, l in enumerate(data[link_key])
         }
     else:
         edge2index = {
-            (l["source"], l["target"]): i for i, l in enumerate(data["links"])
+            (l["source"], l["target"]): i for i, l in enumerate(data[link_key])
         }
 
     for tn in data["graph"]["trace_networks"]:
         for t in tn["traces"]:
-            # they should be unique. Use list since it is json serializable
             t["edges"] = [edge2index[e] for e in t["edges"]]
 
     if data["multigraph"]:
-        # the "key" entry is redundant now
-        for link in data["links"]:
+        for link in data[link_key]:
             del link["key"]
-

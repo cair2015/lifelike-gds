@@ -2,11 +2,12 @@
 import copy
 import gzip
 import logging
+from os.path import expanduser
+
 import networkx as nx
 import numpy as np
-from os.path import expanduser
 import pandas as pd
-import simplejson as json  # NOTE: Careful with this if the `json` package is imported later...
+import simplejson as json
 
 from pathway_graphx.utils.excel_utils import write as xl_u_write
 
@@ -17,8 +18,6 @@ from pathway_graphx.network.graph_algorithms import (
     simple_paths_subgraph,
 )
 from pathway_graphx.network.graph_utils import DirectedGraph, MultiDirectedGraph
-
-# READ
 
 
 def read_json(fname):
@@ -39,7 +38,6 @@ def read_apoc_json(fname):
     with fh as infile:
         graph = json.loads("[" + ",".join(infile.readlines()) + "]")
 
-    # split into nodes and relationships
     nodes = [d for d in graph if d["type"] == "node"]
     relationships = [d for d in graph if d["type"] == "relationship"]
     for d in nodes:
@@ -52,7 +50,6 @@ def read_apoc_json(fname):
     D.add_edges_from(
         (int(d.pop("start")["id"]), int(d.pop("end")["id"]), d) for d in relationships
     )
-    # nodes with degree == 0
     if nx.number_of_isolates(D) > 0:
         logging.warning("{:d} isolated nodes found".format(nx.number_of_isolates(D)))
     return D
@@ -75,9 +72,6 @@ def write_gpickle(G, fname):
         nx.write_gpickle(G, fname)
 
 
-### WRITE
-
-
 def write_graphml(fname, G):
     """
     Write graph to graphml which does not support non-scalars or None so they are converted to string and removed, respectively.
@@ -87,12 +81,12 @@ def write_graphml(fname, G):
     """
 
     def fix_scalar_None(d):
-        for k, vs in d.items():
-            if not np.isscalar(vs):
-                d[k] = str(vs)
         for k in list(d):
             if d[k] is None:
                 del d[k]
+        for k, vs in d.items():
+            if not np.isscalar(vs):
+                d[k] = str(vs)
 
     _G = G.copy()
 
@@ -119,7 +113,6 @@ def write_arango_graphml(fname, D, centrality=None):
     for n in D:
         if centrality is not None:
             graph.nodes[n]["centrality"] = centrality[n]
-        # the following are necessary for the graphml format
         for k, v in graph.nodes[n]["properties"].items():
             if type(v) is list:
                 v = str(v)
@@ -139,7 +132,6 @@ def write_graphml_top(
     fname, D, start_nodes, centrality, top, method="simple", weight="weight"
 ):
     if method == "simple":
-        # weight is not relevant for all simple paths
         write_arango_graphml(
             fname,
             simple_paths_subgraph(D, start_nodes, dict_max(centrality, top)),
@@ -197,10 +189,10 @@ def _serializable_formats(d):
 
 
 def serializable_node_link_data(G):
-    # deep copy so we don't change the types in "G"
     data = copy.deepcopy(nx.node_link_data(G))
     _serializable_formats(data)
     return data
+
 
 def serializable_cytoscape_data(G):
     data = copy.deepcopy(nx.cytoscape_data(G))
@@ -226,21 +218,15 @@ class NumpyEncoder(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, (np.integer,)):
-
             return int(obj)
-
         elif isinstance(obj, (np.floating,)):
             return float(obj)
-
         elif isinstance(obj, (np.complexfloating,)):
             return {"real": obj.real, "imag": obj.imag}
-
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
-
         elif isinstance(obj, (np.bool_,)):
             return bool(obj)
-
         elif isinstance(obj, (np.void)):
             return None
 

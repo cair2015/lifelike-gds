@@ -783,10 +783,10 @@ def all_shortest_path_lengths_through(G, sources, through):
     through = {n for n in through if n in G}
     fromSource = pd.DataFrame(
         {s: nx.shortest_path_length(G, s) for s in sources}
-    ).swapaxes(0, 1)
+    ).transpose()
     fromThrough = pd.DataFrame(
         {s: nx.shortest_path_length(G, s) for s in through}
-    ).swapaxes(0, 1)
+    ).transpose()
     fromSource.index.name = "source"
     fromThrough.index.name = "through"
     fromSource = pd.concat({n: fromSource for n in through}, names=["through"])

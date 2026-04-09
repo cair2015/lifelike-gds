@@ -10,38 +10,8 @@ from pathway_graphx.utils import get_id
 
 logger = logging.getLogger(__name__)
 
-CURRENCY_METABOLITES = [
-    "NAD-P-OR-NOP",
-    "NADH-P-OR-NOP",
-    "Donor-H2",
-    "Acceptor",
-    "HYDROGEN-PEROXIDE",
-    "OXYGEN-MOLECULE",
-    "NAD",
-    "NADP",
-    "NADH",
-    "NADPH",
-    "WATER",
-    "CARBON-DIOXIDE",
-    "FAD",
-    "CO-A",
-    "UDP",
-    "AMMONIA",
-    "NA+",
-    "AMMONIUM",
-    "PROTON",
-    "CARBON-MONOXIDE",
-    "GTP",
-    "ADP",
-    "GDP",
-    "AMP",
-    "ATP",
-    "3-5-ADP",
-    "PPI",
-    "Pi",
-]
-
-CURRENCY_LABEL = "CurrencyMetabolite"
+CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
+DEFAULT_EXCLUDED_NODE_LABELS = [CURRENCY_METABOLITE_LABEL]
 
 EDGE_DESC_DICT = {
     "ELEMENT_OF": "is element of",
@@ -87,7 +57,11 @@ class Biocyc(GraphSource):
         target_display_name = f"{end_node.get('entityType')}({end_node.get('displayName')})"
         nlg = f"{source_display_name} | {edge_type} | {target_display_name}"
         desc = f"RELATIONSHIP: {edge_type}\n{nlg}"
-        edge_ref = (get_id(start_node), get_id(end_node), key) if key is not None else (get_id(start_node), get_id(end_node))
+        edge_ref = (
+            (get_id(start_node), get_id(end_node), key)
+            if key is not None
+            else (get_id(start_node), get_id(end_node))
+        )
         if edge_ref in graph.edges:
             graph.edges[edge_ref]["description"] = desc
 
@@ -114,12 +88,10 @@ class Biocyc(GraphSource):
     def initiate_trace_graph(
         self,
         tracegraph: Any,
-        exclude_currency: bool = True,
-        exclude_secondary: bool = True,
+        exclude_node_labels: Optional[List[str]] = None,
     ) -> None:
-        node_rows, rel_rows = self.database.get_graph_data_for_networkx(
-            exclude_currency=exclude_currency,
-            exclude_secondary=exclude_secondary,
+        node_rows, rel_rows = self.database.get_trace_graph_data(
+            exclude_node_labels=exclude_node_labels,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
         logger.info(
@@ -132,11 +104,11 @@ class Biocyc(GraphSource):
         self,
         tracegraph: Any,
         exclude_nodes: Optional[List[int]] = None,
+        exclude_node_labels: Optional[List[str]] = None,
     ) -> None:
-        node_rows, rel_rows = self.database.get_graph_data_for_networkx(
-            exclude_currency=False,
-            exclude_secondary=False,
+        node_rows, rel_rows = self.database.get_trace_graph_data(
             exclude_nodes=exclude_nodes,
+            exclude_node_labels=exclude_node_labels,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
         logger.info(

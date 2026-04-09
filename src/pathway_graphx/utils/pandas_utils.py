@@ -4,7 +4,6 @@ import pandas as pd
 
 def index2column(df: pd.DataFrame, name: str) -> pd.DataFrame:
     """
-    Put index as a column with the given name. Puts it as first column.
-    Drops the index resetting it to a default integer index.
+    Put the current index into the first column and reset to a default index.
     """
     return df.reset_index().rename(columns=dict(index=name))

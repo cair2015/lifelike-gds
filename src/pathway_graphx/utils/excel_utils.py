@@ -7,11 +7,7 @@ from pathway_graphx.utils.pandas_utils import index2column
 
 def write(fname, sheets: dict, indexes=None, format=True):
     """
-    Write excel table.
-    :param fname: write to this filename or stream
-    :param sheets: dict mapping from sheet name to pandas DataFrame
-    :param indexes: optionally keep indexes by converting them to a normal column with these string names in a list
-    :param format: format as table.
+    Write one or more DataFrames to an Excel workbook.
     """
     with pd.ExcelWriter(fname, engine="xlsxwriter") as writer:
         for i_sheet, (sheet_name, df) in enumerate(sheets.items()):
@@ -26,7 +22,7 @@ def write(fname, sheets: dict, indexes=None, format=True):
 
 def format_as_table(df, sheet, startrow=0, startcol=0, style="Table Style Light 8"):
     """
-    Format as table so columns can easily be filtered, sorted etc.
+    Format an exported worksheet range as an Excel table.
     """
     options = {"columns": [{"header": col} for col in df.columns], "style": style}
     return sheet.add_table(

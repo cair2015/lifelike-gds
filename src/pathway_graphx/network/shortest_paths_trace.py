@@ -129,7 +129,9 @@ class ShortestPathTrace(TraceGraphNx):
         """
         source_name = self._get_node_set_name(sources)
         target_name = self._get_node_set_name(targets)
-        network_name = name or f"K-shortest paths (k={k}) from {source_name} to {target_name}"
+        network_name = (
+            name or f"K-shortest paths (k={k}) from {source_name} to {target_name}"
+        )
 
         if k != 1:
             logger.warning(
@@ -207,7 +209,9 @@ class ShortestPathTrace(TraceGraphNx):
         """
         source_name = self._get_node_set_name(sources)
         target_name = self._get_node_set_name(targets)
-        network_name = name or f"Weighted shortest paths from {source_name} to {target_name}"
+        network_name = (
+            name or f"Weighted shortest paths from {source_name} to {target_name}"
+        )
 
         logger.warning(
             "weight_property='%s' was requested for %s, but weighted shortest paths are not currently implemented.",
@@ -218,23 +222,20 @@ class ShortestPathTrace(TraceGraphNx):
         try:
             return self.add_shortest_paths(sources, targets, name=network_name)
         except Exception:
-            logger.exception("Failed to add weighted shortest paths for %s", network_name)
+            logger.exception(
+                "Failed to add weighted shortest paths for %s", network_name
+            )
             return False
 
     def _get_node_set_name(self, node_set_key: NodeSetRef) -> str:
-        """Return a display name for a node set.
-
-        Args:
-            node_set_key: Internal node-set key stored on the graph.
-
-        Returns:
-            Human-readable name when available, otherwise the original key.
-        """
+        """Return a display name for a node set."""
         try:
             if hasattr(self.graph, "get_node_set_name"):
                 return self.graph.get_node_set_name(node_set_key)
         except Exception:
-            logger.debug("Graph backend does not expose get_node_set_name", exc_info=True)
+            logger.debug(
+                "Graph backend does not expose get_node_set_name", exc_info=True
+            )
 
         try:
             node_sets = self.graph.graph.get("node_sets", {})
@@ -250,10 +251,5 @@ class InteractionPathTrace(ShortestPathTrace):
     """Specialized shortest-path tracer for interaction-path analysis."""
 
     def __init__(self, graphsource: Any, multigraph: bool = True) -> None:
-        """Initialize the interaction-path tracer.
-
-        Args:
-            graphsource: Graph source that can populate and enrich the graph.
-            multigraph: Whether to back the tracer with ``nx.MultiDiGraph``.
-        """
+        """Initialize the interaction-path tracer."""
         super().__init__(graphsource, multigraph=multigraph)

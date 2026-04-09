@@ -1,6 +1,6 @@
-from numbers import Integral
+"""Utility helpers used by the core network package."""
 
-from pathway_graphx.utils.path_utils import get_project_root
+from numbers import Integral
 
 
 def _normalize_id_value(value):

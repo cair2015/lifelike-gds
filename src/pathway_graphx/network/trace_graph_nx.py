@@ -16,6 +16,7 @@ from pathlib import Path
 import networkx as nx
 import pandas as pd
 
+from pathway_graphx.network import GraphSource
 from pathway_graphx.network.groups import set_default_groups
 from pathway_graphx.network.graph_utils import MultiDirectedGraph, DirectedGraph
 from pathway_graphx.network.trace_utils import add_trace_network, get_traced_nodes
@@ -35,7 +36,7 @@ class TraceGraphNx:
     and relies on a GraphSource interface for database operations.
     """
 
-    def __init__(self, graphsource, directed: bool = True, multigraph: bool = True):
+    def __init__(self, graphsource:GraphSource, directed: bool = True, multigraph: bool = True):
         """
         Initialize TraceGraphNx with a database source.
         
@@ -57,28 +58,11 @@ class TraceGraphNx:
         # Save original graph for multiple analyses
         self.orig_graph = self.graph
 
-    def init_default_graph(self, exclude_currency: bool = True, exclude_secondary: bool = True) -> None:
-        """
-        Initialize graph with default nodes and relationships from database.
-        
-        Args:
-            exclude_currency: Exclude currency metabolite nodes
-            exclude_secondary: Exclude secondary metabolite nodes
-        """
-        initiate_trace_graph = self.graphsource.initiate_trace_graph
-        kwargs = {"exclude_currency": exclude_currency}
-        signature = inspect.signature(initiate_trace_graph)
-
-        if (
-            "exclude_secondary" in signature.parameters
-            or any(
-                parameter.kind == inspect.Parameter.VAR_KEYWORD
-                for parameter in signature.parameters.values()
-            )
-        ):
-            kwargs["exclude_secondary"] = exclude_secondary
-
-        initiate_trace_graph(self, **kwargs)
+    def init_default_graph(
+        self,**kwargs
+    ) -> None:
+        """Initialize graph with default nodes and relationships from database."""
+        self.graphsource.initiate_trace_graph(self, **kwargs)
 
     def set_datadir(self, datadir: str) -> None:
         """

@@ -1,7 +1,0 @@
-.DS_Store
-.env
-data/*
-!data/.gitkeep
-dbs/*
-!dbs/.gitkeep
-!dbs/README.md

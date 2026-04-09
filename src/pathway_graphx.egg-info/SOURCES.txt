@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+src/pathway_graphx.egg-info/PKG-INFO
+src/pathway_graphx.egg-info/SOURCES.txt
+src/pathway_graphx.egg-info/dependency_links.txt
+src/pathway_graphx.egg-info/requires.txt
+src/pathway_graphx.egg-info/top_level.txt

@@ -1,134 +1,104 @@
-#!/usr/bin/env python3
+"""Helpers for ranking, selecting, and aggregating collection-like data."""
+
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
 
 
 def _argmax(x, n):
-    """
-    Get indexes of top n from x
-    :param x: collection
-    :param n: number of top values returned
-    :return: unsorted indexes for top n values in x
-    """
+    """Return unsorted indexes for the largest ``n`` values in ``x``."""
     if n >= len(x):
-        return np.arange(len(x))  # return all, avoid ValueError and IndexError
+        return np.arange(len(x))
     return np.argpartition(x, -n)[-n:]
 
 
 def _argmax_ties(x, n):
-    """
-    Get indexes of values in x that are as large as the top n
-    :param x: collection
-    :param n: number of top values
-    :return: unsorted indexes for entries in x, not necessarily n elements.
-    """
+    """Return unsorted indexes whose values are tied with the top ``n``."""
     if n >= len(x):
-        return np.arange(len(x))  # return all, avoid ValueError and IndexError
+        return np.arange(len(x))
     return np.where(x >= np.partition(x, -n)[-n])[0]
 
 
 def _argmin(x, n):
-    """
-    Get indexes of bottom n from x
-    :param x: collection
-    :param n: number of bottom values returned
-    :return: unsorted indexes for top n values in x
-    """
+    """Return unsorted indexes for the smallest ``n`` values in ``x``."""
     if n >= len(x):
-        return np.arange(len(x))  # return all, avoid ValueError and IndexError
+        return np.arange(len(x))
     return np.argpartition(x, n)[:n]
 
 
 def _argmin_ties(x, n):
-    """
-    Get indexes of values in x that are as small as the bottom n
-    :param x: collection
-    :param n: at least this number of bottom values returned
-    :return: unsorted indexes for entries in x, not necessarily n elements.
-    """
+    """Return unsorted indexes whose values are tied with the bottom ``n``."""
     if n >= len(x):
-        return np.arange(len(x))  # return all, avoid ValueError and IndexError
+        return np.arange(len(x))
     return np.where(x <= np.partition(x, n)[n - 1])[0]
 
 
 def argmax(x, n):
-    """
-    Sorted version of _argmax
-    :param x:
-    :param n:
-    :return:
-    """
+    """Return indexes for the largest ``n`` values in descending order."""
     idx = _argmax(x, n)
     return idx[np.argsort(np.take(x, idx))[::-1]]
 
 
 def argmax_ties(x, n):
-    """
-    Sorted version of _argmax_ties
-    :param x:
-    :param n:
-    :return:
-    """
+    """Return indexes tied with the top ``n`` values in descending order."""
     idx = _argmax_ties(x, n)
     return idx[np.argsort(np.take(x, idx))[::-1]]
 
 
 def argmin(x, n):
-    """
-    Sorted version of _argmin
-    :param x:
-    :param n:
-    :return:
-    """
+    """Return indexes for the smallest ``n`` values in ascending order."""
     idx = _argmin(x, n)
     return idx[np.argsort(np.take(x, idx))]
 
 
 def argmin_ties(x, n):
-    """
-    Sorted version of _argmin_ties
-    :param x:
-    :param n:
-    :return:
-    """
+    """Return indexes tied with the bottom ``n`` values in ascending order."""
     idx = _argmin_ties(x, n)
     return idx[np.argsort(np.take(x, idx))]
 
 
 def rank(a, desc=False):
+    """Return 1-based ranks for ``a`` using SciPy's default tie behavior."""
     return rankdata(-a) if desc else rankdata(a)
 
 
 def dict_keys(d):
+    """Return dictionary keys as a NumPy array."""
     return np.asarray(list(d.keys()))
 
 
 def dict_values(d):
+    """Return dictionary values as a NumPy array."""
     return np.asarray(list(d.values()))
 
 
 def dict_take_values(d, keys):
+    """Return values for the subset of ``keys`` that exist in ``d``."""
     return np.asarray([d[k] for k in keys if k in d])
 
 
 def dict_max(d, n=1):
+    """Return the keys for the top ``n`` values in ``d``."""
     return dict_keys(d)[argmax(dict_values(d), n)]
 
 
 def dict_max_ties(d, n=1):
+    """Return keys tied with the top ``n`` values in ``d``."""
     return dict_keys(d)[argmax_ties(dict_values(d), n)]
 
 
 def dict_min(d, n=1):
+    """Return the keys for the bottom ``n`` values in ``d``."""
     return dict_keys(d)[argmin(dict_values(d), n)]
 
 
 def dict_min_ties(d, n=1):
+    """Return keys tied with the bottom ``n`` values in ``d``."""
     return dict_keys(d)[argmin_ties(dict_values(d), n)]
 
 
 def dict_mul(*dicts):
+    """Multiply matching values across dictionaries with identical keys."""
     d1 = dicts[0]
     for d2 in dicts[1:]:
         assert d1.keys() == d2.keys()
@@ -137,77 +107,46 @@ def dict_mul(*dicts):
 
 
 def dict_func(d, f):
-    """
-    Perform potentially vectorized function on values of a dict.
-    :param d: dict
-    :param f: function given dict values as a numpy array
-    :return: dict with keys from d and values changed with f
-    """
+    """Apply a function to dictionary values and rebuild a dictionary."""
     return dict(zip(dict_keys(d), f(dict_values(d))))
 
 
 def dict_rank(d, desc=False):
-    """
-    Get the rank for dict values
-    :param d:
-    :param desc: descending order
-    :return:
-    """
+    """Return ranks for dictionary values while preserving the keys."""
     return dict_func(d, lambda a: rank(a, desc=desc))
 
 
 def dict_take(d, keys):
+    """Return a new dictionary with the subset of keys present in ``d``."""
     return {n: d[n] for n in keys if n in d}
 
 
 def dict_del(d, keys):
-    """
-    Get a copy of dict without entries given in "keys"
-    Unlike del, this doesn't throw errors if the keys are already not in dict.
-    :param d: dict
-    :param keys:
-    :return: dict
-    """
+    """Return a copy of ``d`` without the given keys."""
     return {n: d[n] for n in d.keys() - keys}
 
 
 def dict2str(d):
-    """
-    Prettier representation of string, e.g. dict(a=1, b=2) -> a=1, b=2
-    :param d: dict
-    :return: string
-    """
+    """Format a dictionary as ``key=value`` pairs joined by commas."""
     return ", ".join(f"{k}={v}" for k, v in d.items())
 
 
 def intersects(s1, s2):
-    """
-    Conveniently check if two collections intersect
-    :param s1: collection
-    :param s2: collection
-    :return: bool
-    """
+    """Return ``True`` when the two collections share any element."""
     return not set(s1).isdisjoint(s2)
 
 
 def union(*collections):
-    """
-    Convenient union that allows for no inputs and for first element in collections to not be a set, e.g. a list.
-    :param collections: lists, sets, etc.
-    :return: set union
-    """
+    """Return the set union of any number of collection inputs."""
     return set.union(set(), *collections)
 
 
 def agg_by_all(d, agg):
     """
-    Aggregate a value for each record that are identical (except for the aggregation value).
-    Aggregate with sum implemented.
-    :param d: dict of lists. {"agg": [1, 1, 2, 1, ...], "key0": [...], "key2": [...]}.
-        nth element of each list makes up a record
-        Any scalar entry will be converted to a list of the full length as a side-effect
-    :param agg: str key for dict where the entry contains the values to aggregate.
-    :return: a dict of lists where each record is now unique.
+    Group identical records and sum the column named by ``agg``.
+
+    ``d`` is expected to be a dictionary of column-like values that can be
+    loaded into a DataFrame.
     """
     df = pd.DataFrame(d)
     agg = df.groupby(list(d.keys() - {agg})).sum()

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import networkx as nx
 
 from pathway_graphx.network.graph_source import GraphSource
+from pathway_graphx.network.trace_graph_nx import TraceGraphNx
 from pathway_graphx.utils import get_id
 
 logger = logging.getLogger(__name__)
@@ -57,47 +58,8 @@ REACTOME_TRACE_RELS = [
 ]
 REACTOME_TRACE_RELS_WITH_REF = REACTOME_TRACE_RELS + ["referenceEntity"]
 
-SECONDARY_CHEMS = [
-    "3',5'-ADP",
-    "ADP",
-    "AMP",
-    "ATP",
-    "CO",
-    "CO2",
-    "Ca2+",
-    "Cl-",
-    "CoA-SH",
-    "FAD",
-    "FADH2",
-    "GDP",
-    "GTP",
-    "H+",
-    "H2O",
-    "H2O2",
-    "HCO3-",
-    "K+",
-    "NAD(P)+",
-    "NAD(P)H",
-    "NAD+",
-    "NADH",
-    "NADP+",
-    "NADPH",
-    "NH3",
-    "NH4+",
-    "Na+",
-    "O2",
-    "O2.-",
-    "PAP",
-    "PPi",
-    "PPi(3-)",
-    "Pi",
-    "UDP",
-    "Ub",
-    "adenosine 5'-monophosphate",
-    "phosphate",
-]
-
-SECONDARY_LABEL = "SecondaryMetabolite"
+CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
+DEFAULT_EXCLUDED_NODE_LABELS = [CURRENCY_METABOLITE_LABEL]
 
 EDGE_DESC_DICT = {
     "activeUnitOf": "is active unit of",
@@ -134,6 +96,7 @@ class Reactome(GraphSource):
 
     @classmethod
     def get_node_entity_type(cls, node: Dict[str, Any]) -> str:
+        """Map unsupported entity types back to the generic Reactome entity bucket."""
         entity_type = node.get("entityType", "Entity")
         if entity_type in ALLOWED_NODE_ENTITY_TYPES:
             return entity_type
@@ -141,6 +104,7 @@ class Reactome(GraphSource):
 
     @classmethod
     def split_display_name(cls, display_name: str) -> tuple[str, str]:
+        """Split a Reactome display name into base name and compartment."""
         if not display_name:
             return "", ""
         if not re.fullmatch(r".+ \[[A-Za-z0-9- ]+]", display_name):
@@ -163,10 +127,10 @@ class Reactome(GraphSource):
     def initiate_trace_graph(
         self,
         tracegraph: Any,
-        exclude_currency: bool = True,
+        exclude_node_labels: Optional[List[str]] = None,
     ) -> None:
         node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_secondary_metabolites=exclude_currency,
+            exclude_node_labels=exclude_node_labels,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
         logger.info(
@@ -177,12 +141,13 @@ class Reactome(GraphSource):
 
     def load_graph_to_tracegraph(
         self,
-        tracegraph: Any,
+        tracegraph: TraceGraphNx,
         exclude_nodes: Optional[List[int]] = None,
+        exclude_node_labels: Optional[List[str]] = None,
     ) -> None:
         node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_secondary_metabolites=False,
             exclude_nodes=exclude_nodes,
+            exclude_node_labels=exclude_node_labels,
         )
         self.populate_tracegraph(tracegraph, node_rows, rel_rows)
         logger.info(
@@ -200,11 +165,21 @@ class Reactome(GraphSource):
         edge_type: str,
         key: Optional[str] = None,
     ) -> None:
-        source_display_name = f"{start_node.get('entityType')}({cls.split_display_name(start_node.get('displayName', ''))[0]})"
-        target_display_name = f"{end_node.get('entityType')}({cls.split_display_name(end_node.get('displayName', ''))[0]})"
+        source_display_name = (
+            f"{start_node.get('entityType')}"
+            f"({cls.split_display_name(start_node.get('displayName', ''))[0]})"
+        )
+        target_display_name = (
+            f"{end_node.get('entityType')}"
+            f"({cls.split_display_name(end_node.get('displayName', ''))[0]})"
+        )
         nlg = f"{source_display_name} | {edge_type} | {target_display_name}"
         desc = f"RELATIONSHIP: {edge_type}\n{nlg}"
-        edge_ref = (get_id(start_node), get_id(end_node), key) if key is not None else (get_id(start_node), get_id(end_node))
+        edge_ref = (
+            (get_id(start_node), get_id(end_node), key)
+            if key is not None
+            else (get_id(start_node), get_id(end_node))
+        )
         if edge_ref in graph.edges:
             graph.edges[edge_ref]["description"] = desc
 

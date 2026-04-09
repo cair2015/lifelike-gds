@@ -1,14 +1,16 @@
-import logging
-import numpy as np
+"""Helpers for assigning stable group ids to trace records."""
 
-# NOTE: Added this because of a circular import between biocyc_utils and trace_utils!
+import logging
+
+import numpy as np
 
 
 def get_groups(trace_network):
     """
-    Get group integers for a list of traces. If a trace is not assigned a group an integer will be returned for it which will be unique for different node ids in the query end of the trace.
-    :param trace_network: trace network dict
-    :return: int vector.
+    Return group ids for each trace in a trace-network payload.
+
+    Existing groups are preserved. Missing groups are assigned so that traces
+    sharing the relevant query-side node receive the same group id.
     """
     traces = trace_network["traces"]
     groups = np.asarray([t.get("group", -1) for t in traces])
@@ -18,16 +20,18 @@ def get_groups(trace_network):
 
     track = "source" if trace_network["query"] == trace_network["sources"] else "target"
     nodes = np.asarray([t[track] for t in traces])
-    # if any nodes have a group assigned in another trace then copy it to other traces for that node
+
+    # If a node already has a defined group in one trace, reuse it for the others.
     for n, g in zip(nodes, groups):
         if g != -1:
             groups[nodes == n] = g
 
-    # make a pile of integers not already in use that we can assign to the unassigned groups
+    # Recompute undefined positions after inheriting any existing groups.
+    undef = groups == -1
     unused_integers = np.arange(len(groups))
     unused_integers = unused_integers[~np.isin(unused_integers, groups)]
 
-    # zip stops at shortest iterable so it automatically ignores excess unused integers
+    # ``zip`` stops at the shortest iterable, which naturally handles excess ids.
     sorted_nodes = sorted(list(set(nodes[undef])))
     for n, g in zip(sorted_nodes, unused_integers):
         groups[nodes == n] = g
@@ -36,6 +40,7 @@ def get_groups(trace_network):
 
 
 def set_default_groups(D):
+    """Populate missing ``group`` fields across the graph's trace networks."""
     if "trace_networks" not in D.graph:
         logging.warning("No trace networks to set group for.")
     elif all("group" in t for tn in D.graph["trace_networks"] for t in tn["traces"]):

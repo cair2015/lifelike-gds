@@ -20,8 +20,8 @@ class InBetweennessTrace(TraceGraphNx):
     source and target node sets. Database-agnostic implementation.
     """
     
-    def __init__(self, graphsource):
-        super().__init__(graphsource)
+    def __init__(self, graphsource, multigraph: bool = True):
+        super().__init__(graphsource, multigraph=multigraph)
 
     def get_betweenness_prop_name(self, sources, targets):
         """
@@ -53,7 +53,7 @@ class InBetweennessTrace(TraceGraphNx):
         tempkey = None
         if pagerank_prop:
             tempkey = 'edge_wt'
-            set_edge_weight_by_source_node_weight(self.graph, pagerank_prop, tempkey)
+            set_edge_weight_by_source_node_weight(self.graph, tempkey, pagerank_prop)
 
         inbetweenness = dict()
         for source_id in source_nodes:
@@ -204,6 +204,17 @@ class InBetweennessTrace(TraceGraphNx):
         excluded = source_nodes.union(target_nodes)
         prop_name = self.get_betweenness_prop_name(sources, targets)
         selected_nodes = self.get_most_weighted_nodes(prop_name, num, exclude_nodes=excluded)
-        self.add_trace_networks_with_selected_nodes(selected_nodes, sources, targets, False, False)
+        selected_key = f"top_{num}_{prop_name}"
+        self.graph.set_node_set(
+            selected_key,
+            set(selected_nodes),
+            name=f"top {num} betweenness nodes",
+            description=f"top {num} nodes by {prop_name}",
+        )
+        self.add_inbetweenness_trace_networks_with_selected_nodes(
+            selected_key,
+            sources,
+            targets,
+        )
         self.add_graph_description(f"Traces from {sources} to top {num} betweenness nodes;")
         self.add_graph_description(f"Traces from top {num} betweenness nodes to {targets};")

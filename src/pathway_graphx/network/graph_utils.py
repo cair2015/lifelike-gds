@@ -245,7 +245,7 @@ def _meta_union(R, Gs, meta_key):
                     meta_R = R.graph[meta_key][key]
                     if meta_R == meta:
                         continue
-                    if {k: meta[k] for k in meta_R} == meta_R:
+                    if all(k in meta and meta[k] == v for k, v in meta_R.items()):
                         logging.info(
                             f'Adding {", ".join(meta.keys() - meta_R.keys())} to the {meta_key} {key}.'
                         )

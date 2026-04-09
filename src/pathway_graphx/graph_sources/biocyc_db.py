@@ -6,15 +6,19 @@ from typing import List, Optional
 
 from pathway_graphx.graph_sources.biocyc import (
     Biocyc,
-    CURRENCY_LABEL,
-    CURRENCY_METABOLITES,
+    CURRENCY_METABOLITE_LABEL,
+    DEFAULT_EXCLUDED_NODE_LABELS as BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS,
     EDGE_DESC_DICT,
 )
 from pathway_graphx.graph_sources.database import Database
 
+DEFAULT_EXCLUDED_NODE_LABELS = BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS
+
 
 class BiocycDB(Database):
     """Neo4j query adapter for the BioCyc graph."""
+
+    DEFAULT_EXCLUDED_NODE_LABELS = tuple(BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS)
 
     def __init__(
         self,
@@ -23,7 +27,7 @@ class BiocycDB(Database):
         username: Optional[str] = None,
         password: Optional[str] = None,
         collection_label: str = "BioCyc",
-    ):
+    ) -> None:
         super().__init__(
             collection_label=collection_label,
             database=database,
@@ -34,49 +38,18 @@ class BiocycDB(Database):
 
     def get_graph_data_for_networkx(
         self,
-        exclude_currency: bool = True,
-        exclude_secondary: bool = True,
         exclude_nodes: Optional[List[str]] = None,
+        exclude_node_labels: Optional[List[str]] = None,
     ):
-        label_clause = f":{self.collection_label}" if self.collection_label else ""
-        node_filters = []
-        rel_filters = []
-        if exclude_currency:
-            node_filters.append(f"NOT '{CURRENCY_LABEL}' IN labels(n)")
-            rel_filters.extend(
-                [
-                    f"NOT '{CURRENCY_LABEL}' IN labels(n)",
-                    f"NOT '{CURRENCY_LABEL}' IN labels(m)",
-                ]
-            )
-        if exclude_secondary:
-            rel_filters.append("coalesce(r.SECONDARY, false) = false")
-        if exclude_nodes:
-            node_filters.append("NOT elementId(n) IN $exclude_ids")
-            rel_filters.extend(
-                ["NOT elementId(n) IN $exclude_ids", "NOT elementId(m) IN $exclude_ids"]
-            )
+        """Backward-compatible alias for BioCyc trace graph projection data."""
+        return self.get_trace_graph_data(
+            exclude_nodes=exclude_nodes,
+            exclude_node_labels=exclude_node_labels,
+        )
 
-        node_where = f"WHERE {' AND '.join(node_filters)}" if node_filters else ""
-        rel_where = f"WHERE {' AND '.join(rel_filters)}" if rel_filters else ""
-
-        node_query = f"""
-        MATCH (n{label_clause})
-        {node_where}
-        RETURN DISTINCT elementId(n) AS node_id
-        """
-        rel_query = f"""
-        MATCH (n{label_clause})-[r]->(m{label_clause})
-        {rel_where}
-        RETURN elementId(n) AS source, elementId(m) AS target, type(r) AS type
-        """
-        params = {"exclude_ids": exclude_nodes} if exclude_nodes else {}
-        return self.get_dataframe(node_query, **params), self.get_dataframe(rel_query, **params)
-
-    def get_node_data_for_excel(self, node_ids: List[str]):
-        label_clause = f":{self.collection_label}" if self.collection_label else ""
+    def get_node_data_for_excel(self, node_ids: List[str]) -> object:
         query = f"""
-        MATCH (n{label_clause})
+        MATCH (n{self.label_clause})
         WHERE elementId(n) IN $node_ids
         RETURN
             elementId(n) AS id,
@@ -92,7 +65,7 @@ class BiocycDB(Database):
 __all__ = [
     "Biocyc",
     "BiocycDB",
-    "CURRENCY_LABEL",
-    "CURRENCY_METABOLITES",
+    "DEFAULT_EXCLUDED_NODE_LABELS",
+    "CURRENCY_METABOLITE_LABEL",
     "EDGE_DESC_DICT",
 ]

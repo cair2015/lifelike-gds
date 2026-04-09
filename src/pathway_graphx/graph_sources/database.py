@@ -1,29 +1,21 @@
-"""
-Neo4j database abstraction layer for graph data queries.
+"""Neo4j database abstraction layer for graph data queries."""
 
-This module provides the Database and GraphSource classes that abstract
-Neo4j database operations and enable modular network analysis.
-"""
+from __future__ import annotations
 
-import logging
-from typing import Any, Dict, List, Optional
+from pprint import pformat
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 
 import pandas as pd
 
-from pathway_graphx.network.graph_source import GraphSource as GraphSourceBase
 from pathway_graphx.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
 from pathway_graphx.utils.config_utils import read_config
 
-logger = logging.getLogger(__name__)
-
 
 class Database:
-    """
-    Neo4j database wrapper providing high-level query interfaces.
-    
-    This class abstracts Neo4j operations and provides methods for executing
-    queries and retrieving results in various formats (records, DataFrames, etc.).
-    """
+    """Neo4j database wrapper providing high-level query interfaces."""
+
+    DEFAULT_EXCLUDED_NODE_LABELS: Sequence[str] = ()
+    TRACE_RELATIONSHIP_TYPES: Optional[Sequence[str]] = None
 
     def __init__(
         self,
@@ -33,27 +25,7 @@ class Database:
         username: Optional[str] = None,
         password: Optional[str] = None,
         encrypted: Optional[bool] = None,
-    ):
-        """
-        Initialize Neo4j database connection.
-        
-        Configuration is loaded from environment variables if not provided as parameters.
-        Set these environment variables or use a .env file:
-            NEO4J_URI: Connection URI (e.g., bolt://localhost:7687)
-            NEO4J_USER: Database username
-            NEO4J_PASSWORD: Database password
-            NEO4J_DATABASE: Database name (default: neo4j)
-        
-        Args:
-            collection_label: Optional primary node label in Neo4j (e.g., 'Reactome')
-            database: Neo4j database name. If not provided, reads from NEO4J_DATABASE env var.
-            uri: Neo4j connection URI. If not provided, reads from NEO4J_URI env var.
-            username: Database username. If not provided, reads from NEO4J_USER env var.
-            password: Database password. If not provided, reads from NEO4J_PASSWORD env var.
-            
-        Raises:
-            KeyError: If required environment variables are not found or no parameters provided.
-        """
+    ) -> None:
         self.collection_label = collection_label
 
         if not uri or not username or not password or not database:
@@ -72,6 +44,16 @@ class Database:
             database=database,
             encrypted=bool(encrypted),
         )
+
+    @staticmethod
+    def format_label_clause(collection_label: Optional[str]) -> str:
+        """Return a Cypher label suffix such as ``:Reactome`` or an empty string."""
+        return f":{collection_label}" if collection_label else ""
+
+    @property
+    def label_clause(self) -> str:
+        """Return the configured collection label formatted for Cypher queries."""
+        return self.format_label_clause(self.collection_label)
 
     @staticmethod
     def _normalize_node(node: Any) -> Dict[str, Any]:
@@ -93,138 +75,220 @@ class Database:
         if element_id is None and isinstance(node, dict):
             element_id = node.get("element_id") or node.get("id")
         if element_id is not None:
-            props["id"] = str(element_id)
-            props.setdefault("element_id", str(element_id))
-            props.setdefault("_key", str(element_id))
+            element_id = str(element_id)
+            props["id"] = element_id
+            props.setdefault("element_id", element_id)
+            props.setdefault("_key", element_id)
 
         labels = getattr(node, "labels", None)
         if labels is not None:
             props.setdefault("labels", list(labels))
         return props
 
-    def _normalize_node_records(self, records: List[Dict[str, Any]], key: str = "n") -> List[Dict[str, Any]]:
-        nodes = []
-        for record in records:
-            value = record.get(key, record) if isinstance(record, dict) else record
-            nodes.append(self._normalize_node(value))
-        return nodes
+    def _normalize_node_records(
+        self,
+        records: Iterable[Any],
+        key: str = "n",
+    ) -> List[Dict[str, Any]]:
+        return [
+            self._normalize_node(record.get(key, record) if isinstance(record, dict) else record)
+            for record in records
+        ]
 
-    def close(self):
-        """Close the database connection."""
+    @staticmethod
+    def _render_where_clause(filters: Sequence[str]) -> str:
+        """Render a Cypher ``WHERE`` clause from a list of filter expressions."""
+        return f"WHERE {' AND '.join(filters)}" if filters else ""
+
+    @staticmethod
+    def _normalize_excluded_node_labels(
+        exclude_node_labels: Optional[Sequence[str]],
+        default_excluded_node_labels: Optional[Sequence[str]] = None,
+    ) -> Optional[List[str]]:
+        labels = default_excluded_node_labels if exclude_node_labels is None else exclude_node_labels
+        return list(labels) if labels else None
+
+    @staticmethod
+    def _build_projection_filters(
+        aliases: Sequence[str],
+        exclude_nodes: Optional[Sequence[str]] = None,
+        exclude_node_labels: Optional[Sequence[str]] = None,
+    ) -> List[str]:
+        filters: List[str] = []
+
+        if exclude_nodes:
+            filters.extend([f"NOT elementId({alias}) IN $exclude_ids" for alias in aliases])
+        if exclude_node_labels:
+            filters.extend(
+                [
+                    f"NONE(label IN labels({alias}) WHERE label IN $exclude_node_labels)"
+                    for alias in aliases
+                ]
+            )
+        return filters
+
+    @classmethod
+    def _build_projection_params(
+        cls,
+        exclude_nodes: Optional[Sequence[str]] = None,
+        exclude_node_labels: Optional[Sequence[str]] = None,
+        default_excluded_node_labels: Optional[Sequence[str]] = None,
+    ) -> Dict[str, List[str]]:
+        normalized_exclude_labels = cls._normalize_excluded_node_labels(
+            exclude_node_labels,
+            default_excluded_node_labels,
+        )
+        params: Dict[str, List[str]] = {}
+        if exclude_nodes:
+            params["exclude_ids"] = [str(node_id) for node_id in exclude_nodes]
+        if normalized_exclude_labels:
+            params["exclude_node_labels"] = normalized_exclude_labels
+        return params
+
+    @classmethod
+    def get_projection_relationship_pattern(cls) -> str:
+        """Return the relationship pattern used in trace-graph projections."""
+        if cls.TRACE_RELATIONSHIP_TYPES:
+            rel_type_clause = "|".join(cls.TRACE_RELATIONSHIP_TYPES)
+            return f"-[r:{rel_type_clause}]->"
+        return "-[r]->"
+
+    @classmethod
+    def build_trace_graph_projection_queries(
+        cls,
+        collection_label: str = "",
+        exclude_nodes: Optional[List[str]] = None,
+        exclude_node_labels: Optional[List[str]] = None,
+    ) -> tuple[str, str, dict]:
+        """Return node/edge projection queries without requiring a live DB connection."""
+        label_clause = cls.format_label_clause(collection_label)
+        normalized_exclude_labels = cls._normalize_excluded_node_labels(
+            exclude_node_labels,
+            cls.DEFAULT_EXCLUDED_NODE_LABELS,
+        )
+        where_clause = cls._render_where_clause(
+            cls._build_projection_filters(
+                ("n", "m"),
+                exclude_nodes=exclude_nodes,
+                exclude_node_labels=normalized_exclude_labels,
+            )
+        )
+        relationship_pattern = cls.get_projection_relationship_pattern()
+
+        node_query = f"""
+        MATCH (n{label_clause}){relationship_pattern}(m{label_clause})
+        {where_clause}
+        UNWIND [n, m] AS x
+        RETURN DISTINCT elementId(x) AS node_id
+        """
+        rel_query = f"""
+        MATCH (n{label_clause}){relationship_pattern}(m{label_clause})
+        {where_clause}
+        RETURN elementId(n) AS source, elementId(m) AS target, type(r) AS type
+        """
+        params = cls._build_projection_params(
+            exclude_nodes=exclude_nodes,
+            exclude_node_labels=normalized_exclude_labels,
+        )
+        return node_query, rel_query, params
+
+    def get_trace_graph_data(
+        self,
+        exclude_nodes: Optional[List[str]] = None,
+        exclude_node_labels: Optional[List[str]] = None,
+    ):
+        node_query, rel_query, params = self.build_trace_graph_projection_queries(
+            collection_label=self.collection_label or "",
+            exclude_nodes=exclude_nodes,
+            exclude_node_labels=exclude_node_labels,
+        )
+        return self.get_dataframe(node_query, **params), self.get_dataframe(rel_query, **params)
+
+    @classmethod
+    def default_trace_graph_projection_scenarios(cls) -> List[Dict[str, object]]:
+        """Return a few representative projection-filter scenarios for inspection."""
+        default_excluded_labels = cls._normalize_excluded_node_labels(
+            None,
+            cls.DEFAULT_EXCLUDED_NODE_LABELS,
+        ) or []
+        additional_excluded_labels = [*default_excluded_labels, "ExampleExcludedLabel"]
+        return [
+            {
+                "name": "default_filters",
+                "exclude_nodes": None,
+                "exclude_node_labels": default_excluded_labels,
+            },
+            {
+                "name": "include_all_labels",
+                "exclude_nodes": None,
+                "exclude_node_labels": [],
+            },
+            {
+                "name": "exclude_specific_nodes",
+                "exclude_nodes": ["4:demo-source", "4:demo-target"],
+                "exclude_node_labels": default_excluded_labels,
+            },
+            {
+                "name": "exclude_additional_node_labels",
+                "exclude_nodes": None,
+                "exclude_node_labels": additional_excluded_labels,
+            },
+        ]
+
+    @classmethod
+    def print_trace_graph_projection_queries(
+        cls,
+        collection_label: str = "",
+        scenarios: Optional[List[dict]] = None,
+    ) -> None:
+        """Print representative trace-graph projection queries for manual inspection."""
+        scenarios = scenarios or cls.default_trace_graph_projection_scenarios()
+        for scenario in scenarios:
+            name = scenario.get("name", "unnamed_scenario")
+            node_query, rel_query, params = cls.build_trace_graph_projection_queries(
+                collection_label=collection_label,
+                exclude_nodes=scenario.get("exclude_nodes"),
+                exclude_node_labels=scenario.get("exclude_node_labels"),
+            )
+            print(f"=== {name} ===")
+            print(f"collection_label={collection_label!r}")
+            print(f"params={pformat(params)}")
+            print("node_query:")
+            print(node_query.strip())
+            print("rel_query:")
+            print(rel_query.strip())
+            print()
+
+    def close(self) -> None:
+        """Close the underlying database connection."""
         self.connection.close()
 
-    def run_query(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> List[Dict[str, Any]]:
-        """
-        Execute a Cypher query and return list of result records.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            List of result records as dictionaries
-        """
+    def run_query(self, query: str, **parameters: Any) -> List[Dict[str, Any]]:
+        """Execute a Cypher query and return records as dictionaries."""
         return self.connection.get_records(query, parameters)
 
-    def get_dict(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> List[Dict[str, Any]]:
-        """
-        Alias for run_query for compatibility with ArangoDB interface.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            List of result records as dictionaries
-        """
+    def get_dict(self, query: str, **parameters: Any) -> List[Dict[str, Any]]:
+        """Alias for :meth:`run_query` kept for compatibility."""
         return self.run_query(query, **parameters)
 
-    def get_dataframe(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> pd.DataFrame:
-        """
-        Execute query and return results as pandas DataFrame.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            pandas DataFrame with query results
-        """
+    def get_dataframe(self, query: str, **parameters: Any) -> pd.DataFrame:
+        """Execute a query and return the result as a DataFrame."""
         return self.connection.get_dataframe(query, parameters)
 
-    def get_raw_value(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> List[Dict[str, Any]]:
-        """
-        Alias for run_query for compatibility.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            List of result records
-        """
+    def get_raw_value(self, query: str, **parameters: Any) -> List[Dict[str, Any]]:
+        """Alias for :meth:`run_query` kept for compatibility."""
         return self.run_query(query, **parameters)
 
-    def get_single_value(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> Any:
-        """
-        Execute query and return first value from first record.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            Single value from first record
-        """
+    def get_single_value(self, query: str, **parameters: Any) -> Any:
+        """Execute a query and return the first value from the first record."""
         return self.connection.get_single_value(query, parameters)
 
-    def get_query_values(
-        self,
-        query: str,
-        **parameters: Any,
-    ) -> List[Dict[str, Any]]:
-        """
-        Alias for run_query.
-        
-        Args:
-            query: Cypher query string
-            **parameters: Query parameters
-            
-        Returns:
-            List of result records
-        """
+    def get_query_values(self, query: str, **parameters: Any) -> List[Dict[str, Any]]:
+        """Alias for :meth:`run_query`."""
         return self.run_query(query, **parameters)
 
     def get_nodes_by_node_ids(self, id_list: List[Any]) -> List[Dict[str, Any]]:
-        """
-        Retrieve nodes by their Neo4j IDs.
-        
-        Args:
-            id_list: List of node IDs
-            
-        Returns:
-            List of node records
-        """
+        """Retrieve nodes by their Neo4j element IDs."""
         query, params = Neo4jQueryBuilder.get_nodes_by_ids(id_list, self.collection_label)
         return self._normalize_node_records(self.run_query(query, **params))
 
@@ -234,196 +298,27 @@ class Database:
         attr_name: str,
         node_label: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieve nodes by property values.
-        
-        Args:
-            attr_values: List of attribute values to match
-            attr_name: Name of the attribute property
-            node_label: Optional node label (uses collection_label if not specified)
-            
-        Returns:
-            List of node records
-        """
+        """Retrieve nodes by property values."""
         label = node_label or self.collection_label
         query, params = Neo4jQueryBuilder.get_nodes_by_property(attr_name, attr_values, label)
         return self._normalize_node_records(self.run_query(query, **params))
 
     def get_currency_nodes(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve currency and secondary metabolite nodes.
-        
-        Returns:
-            List of currency/secondary metabolite node records
-        """
+        """Retrieve nodes labeled as currency metabolites."""
         query, params = Neo4jQueryBuilder.get_currency_nodes(self.collection_label)
         return self._normalize_node_records(self.run_query(query, **params))
 
-    def get_shortest_path_len(
-        self,
-        sources: List[Any],
-        targets: List[Any],
-        rels: Optional[List[str]] = None,
-        exclude_nodes: Optional[List[Any]] = None,
-        include_nodes: Optional[List[Any]] = None,
-    ) -> pd.DataFrame:
-        """
-        Get shortest path lengths between sources and targets.
-        
-        Args:
-            sources: List of source nodes
-            targets: List of target nodes
-            rels: Optional list of relationship types to include
-            exclude_nodes: Optional nodes to exclude from paths
-            include_nodes: Optional nodes that must be in paths
-            
-        Returns:
-            DataFrame with shortest path information
-        """
-        source_ids = [self._extract_id(n) for n in sources]
-        target_ids = [self._extract_id(n) for n in targets]
-        
-        query = """
-        MATCH (s), (t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        MATCH p = shortestPath((s)-[*]->(t))
-        RETURN s.displayName as sourceName, t.displayName as targetName, length(p) as shortestPathLen
-        """
-        
-        params = {
-            "source_ids": source_ids,
-            "target_ids": target_ids,
-        }
-        
-        return self.get_dataframe(query, **params)
 
-    def get_shortest_paths(
-        self,
-        sources: List[Any],
-        targets: List[Any],
-        rels: Optional[List[str]] = None,
-        exclude_nodes: Optional[List[Any]] = None,
-        include_nodes: Optional[List[Any]] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Get all shortest paths between sources and targets.
-        
-        Args:
-            sources: List of source nodes
-            targets: List of target nodes
-            rels: Optional list of relationship types to include
-            exclude_nodes: Optional nodes to exclude from paths
-            include_nodes: Optional nodes that must be in paths
-            
-        Returns:
-            List of path records
-        """
-        source_ids = [self._extract_id(n) for n in sources]
-        target_ids = [self._extract_id(n) for n in targets]
-        
-        query = """
-        MATCH (s), (t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        MATCH p = allShortestPaths((s)-[*]->(t))
-        RETURN p
-        """
-        
-        params = {
-            "source_ids": source_ids,
-            "target_ids": target_ids,
-        }
-        
-        return self.run_query(query, **params)
-
-    def add_shortest_paths_nodes_rels_to_nx(
-        self,
-        D,  # NetworkX DiGraph
-        sources: List[Any],
-        targets: List[Any],
-        rels: Optional[List[str]] = None,
-        exclude_nodes: Optional[List[Any]] = None,
-        include_nodes: Optional[List[Any]] = None,
-    ):
-        """
-        Query shortest paths and add nodes/relationships to NetworkX graph.
-        
-        Args:
-            D: NetworkX DiGraph object
-            sources: List of source nodes
-            targets: List of target nodes
-            rels: Optional list of relationship types
-            exclude_nodes: Optional nodes to exclude
-            include_nodes: Optional nodes that must be included
-        """
-
-        source_ids = [self._extract_id(n) for n in sources]
-        target_ids = [self._extract_id(n) for n in targets]
-        
-        # Get all nodes in shortest paths
-        node_query = """
-        MATCH (s), (t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        MATCH p = allShortestPaths((s)-[*]->(t))
-        UNWIND nodes(p) as n
-        RETURN DISTINCT elementId(n) as node_id
-        """
-        
-        node_params = {
-            "source_ids": source_ids,
-            "target_ids": target_ids,
-        }
-        
-        node_data = self.get_dataframe(node_query, **node_params)
-        nodes = list(node_data["node_id"])
-        D.add_nodes_from(nodes)
-        
-        # Get relationships between these nodes
-        rel_query = """
-        MATCH (n)-[r]->(m)
-        WHERE elementId(n) IN $node_ids AND elementId(m) IN $node_ids
-        RETURN elementId(n) as source, elementId(m) as target, type(r) as type
-        """
-        
-        rel_params = {"node_ids": nodes}
-        rel_data = self.get_dataframe(rel_query, **rel_params)
-        
-        for _, row in rel_data.iterrows():
-            D.add_edge(row["source"], row["target"], label=row["type"])
-        
-        logger.info(f"Added {len(nodes)} nodes and {len(rel_data)} edges to graph")
-
-    @staticmethod
-    def _extract_id(node: Any) -> Any:
-        """
-        Extract ID from a node object.
-        
-        Handles various node representations:
-        - Dict with 'id' or 'element_id' key
-        - Object with id attribute
-        - Integer (returned as-is)
-        
-        Args:
-            node: Node object or ID
-            
-        Returns:
-            Node ID as a backend-specific string or integer
-        """
-        if isinstance(node, dict):
-            if "element_id" in node:
-                return str(node["element_id"])
-            if "id" in node:
-                return str(node["id"])
-        elif hasattr(node, "element_id"):
-            return str(node.element_id)
-        elif hasattr(node, "id"):
-            return str(node.id)
-        elif isinstance(node, int):
-            return node
-        elif isinstance(node, str):
-            return node
-        
-        raise ValueError(f"Cannot extract ID from node: {node}")
+def print_trace_graph_projection_queries(
+    database_class: Type[Database],
+    collection_label: str = "",
+    scenarios: Optional[List[dict]] = None,
+) -> None:
+    """Module-level wrapper for printing projection queries from a database class."""
+    database_class.print_trace_graph_projection_queries(
+        collection_label=collection_label,
+        scenarios=scenarios,
+    )
 
 
-class GraphSource(GraphSourceBase):
-    """Marker base class for Neo4j-backed graph sources."""
+__all__ = ["Database", "print_trace_graph_projection_queries"]

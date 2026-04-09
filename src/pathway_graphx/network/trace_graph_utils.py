@@ -92,8 +92,10 @@ def link_index(data: Dict) -> None:
     Args:
         data: Node-link format graph dictionary (modified in place)
     """
+    link_key = "links" if "links" in data else "edges"
+
     # Handle case where there are no links or trace networks
-    if "links" not in data or not data["links"]:
+    if link_key not in data or not data[link_key]:
         return
     
     if "trace_networks" not in data.get("graph", {}):
@@ -102,12 +104,12 @@ def link_index(data: Dict) -> None:
     if data["multigraph"]:
         edge2index = {
             (l["source"], l["target"], l["key"]): i 
-            for i, l in enumerate(data["links"])
+            for i, l in enumerate(data[link_key])
         }
     else:
         edge2index = {
             (l["source"], l["target"]): i 
-            for i, l in enumerate(data["links"])
+            for i, l in enumerate(data[link_key])
         }
 
     for tn in data["graph"]["trace_networks"]:
@@ -115,7 +117,7 @@ def link_index(data: Dict) -> None:
             t["edges"] = [edge2index[e] for e in t["edges"]]
 
     if data["multigraph"]:
-        for link in data["links"]:
+        for link in data[link_key]:
             del link["key"]
 
 

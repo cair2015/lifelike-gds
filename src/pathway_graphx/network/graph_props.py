@@ -1,5 +1,7 @@
-#!/usr/bin/env python3
+"""Property-based helpers for querying and annotating NetworkX graphs."""
+
 import logging
+
 import networkx as nx
 import numpy as np
 
@@ -14,16 +16,8 @@ from pathway_graphx.network.collection_utils import (
 logging.basicConfig(level=logging.INFO)
 
 
-### GETTERS BY PROPS
-
-
 def _prop_match(d, **prop_filter):
-    """
-    Check if there is a match for node or edge properties given in d for a filter given by prop_filter.
-    :param d:
-    :param prop_filter:
-    :return:
-    """
+    """Return ``True`` when all property filters match the data mapping."""
     for propname, filtervals in prop_filter.items():
         try:
             vals = d[propname]
@@ -44,13 +38,7 @@ def _prop_match(d, **prop_filter):
 
 
 def _prop_match_insensitive(d, **prop_filter):
-    """
-    Check if there is a case-insensitive match for node or edge properties given in d for a filter given by prop_filter.
-    Allows for non-string values, so one can mix string insensitive filtering with integer filtering without problem.
-    :param d:
-    :param prop_filter:
-    :return:
-    """
+    """Like :func:`_prop_match`, but compares string values case-insensitively."""
     for propname, filtervals in prop_filter.items():
         try:
             vals = d[propname]
@@ -65,7 +53,7 @@ def _prop_match_insensitive(d, **prop_filter):
                 vals = {v.lower() for v in vals}
             filtervals = {v.lower() for v in filtervals}
         except AttributeError:
-            pass  # allow for e.g. int filtering
+            pass
         try:
             if vals in filtervals or (
                 not np.isscalar(vals) and intersects(vals, filtervals)
@@ -81,8 +69,7 @@ def _prop_match_insensitive(d, **prop_filter):
 def _get_nodes_by_f(G, f, nodes=None):
     if nodes is None:
         return {n for n, d in G.nodes(data=True) if f(d)}
-    else:
-        return {n for n in nodes if f(G.nodes[n])}
+    return {n for n in nodes if f(G.nodes[n])}
 
 
 def _get_edges_by_f(G, f, edges=None):
@@ -91,13 +78,14 @@ def _get_edges_by_f(G, f, edges=None):
             G.edges(keys=True, data=True) if G.is_multigraph() else G.edges(data=True)
         )
         return {e[:-1] for e in edges if f(e[-1])}
-    else:
-        if G.is_multigraph():
-            edges = from_multi_edges(G, edges)
-        return {e for e in edges if f(G.edges[e])}
+    if G.is_multigraph():
+        edges = from_multi_edges(G, edges)
+    return {e for e in edges if f(G.edges[e])}
 
 
 def get_nodes_by_func(G, func, nodes=None):
+    """Return nodes whose property dictionaries satisfy ``func``."""
+
     def f(d):
         try:
             return func(d)
@@ -108,13 +96,7 @@ def get_nodes_by_func(G, func, nodes=None):
 
 
 def get_edges_by_func(G, func, edges=None):
-    """
-
-    :param G: (multi) directed graph
-    :param func:
-    :param edges:
-    :return:
-    """
+    """Return edges whose property dictionaries satisfy ``func``."""
 
     def f(d):
         try:
@@ -126,14 +108,7 @@ def get_edges_by_func(G, func, edges=None):
 
 
 def get_nodes_by_prop_func(G, nodes=None, **prop_func_filter):
-    """
-    Get nodes from G where a function given the value of a property returns True.
-    :param G: graph
-    :param nodes: only among these nodes
-    :param prop_func_filter: {k:v, ...}. k is the name of a property,
-        for which a value will be provided to the function given in v
-    :return: set of nodes
-    """
+    """Return nodes for which each property-specific predicate returns ``True``."""
 
     def f(d):
         try:
@@ -148,14 +123,7 @@ def get_nodes_by_prop_func(G, nodes=None, **prop_func_filter):
 
 
 def get_edges_by_prop_func(G, edges=None, **prop_func_filter):
-    """
-    Get nodes from G where a function given the value of a property returns True.
-    :param G: graph
-    :param edges: only among these edges
-    :param prop_func_filter: {k:v, ...}. k is the name of a property,
-        for which a value will be provided to the function given in v
-    :return: set of nodes
-    """
+    """Return edges for which each property-specific predicate returns ``True``."""
 
     def f(d):
         try:
@@ -170,42 +138,19 @@ def get_edges_by_prop_func(G, edges=None, **prop_func_filter):
 
 
 def get_nodes_by_prop_match(G, nodes=None, insensitive=False, **prop_filter):
-    """
-    Get nodes from G where there is a match between ALL given values and values found under a specific key.
-    :param G:
-    :param nodes: only among these nodes
-    :param insensitive: bool. Should string comparisons be case-insensitive?
-    :param prop_filter: look up k, match the value found against v. v can be a list of terms.
-        if there are multiple k,v pairs, any match is a match
-    :return:
-    """
+    """Return nodes whose properties match all requested values."""
     f = _prop_match_insensitive if insensitive else _prop_match
     return get_nodes_by_func(G, lambda d: f(d, **prop_filter), nodes)
 
 
 def get_edges_by_prop_match(G, edges=None, insensitive=False, **prop_filter):
-    """
-    Get edges from G where there is a match between ALL given values and values found under a specific key.
-    :param G:
-    :param edges: only among these edges
-    :param insensitive: bool. Should str comparisons be case-insensitive?
-    :param prop_filter: look up k, match the value found against v. v can be a list of terms.
-        If there are multiple k,v pairs, any match is a match
-    :return:
-    """
+    """Return edges whose properties match all requested values."""
     f = _prop_match_insensitive if insensitive else _prop_match
     return get_edges_by_func(G, lambda d: f(d, **prop_filter), edges)
 
 
 def get_nodes_by_prop(G, nodes=None, insensitive=False, **prop_filters):
-    """
-    Get nodes from G where all filters are satisfied.
-    :param G:
-    :param nodes: only among these nodes
-    :param insensitive: bool. Should string comparisons be case-insensitive?
-    :param prop_filters: {k:v, ...} v can be either a function or a value for matching
-    :return: node set
-    """
+    """Return nodes that satisfy value filters and callable filters together."""
     funcs = {k: v for k, v in prop_filters.items() if callable(v)}
     props = {k: v for k, v in prop_filters.items() if not callable(v)}
     if len(props) > 0:
@@ -216,14 +161,7 @@ def get_nodes_by_prop(G, nodes=None, insensitive=False, **prop_filters):
 
 
 def get_edges_by_prop(G, edges=None, insensitive=False, **prop_filters):
-    """
-    Get nodes from G where all filters are satisfied.
-    :param G:
-    :param edges: only among these nodes
-    :param insensitive: bool. Should string comparisons be case-insensitive?
-    :param prop_filters: {k:v, ...} v can be either a function or a value for matching
-    :return: node set
-    """
+    """Return edges that satisfy value filters and callable filters together."""
     funcs = {k: v for k, v in prop_filters.items() if callable(v)}
     props = {k: v for k, v in prop_filters.items() if not callable(v)}
     if len(props) > 0:
@@ -234,13 +172,7 @@ def get_edges_by_prop(G, edges=None, insensitive=False, **prop_filters):
 
 
 def _get_any_nodes_by_prop(G, **kwargs):
-    """
-    Get nodes from G where there is a match between ANY given values and values found under a specific key.
-    :param G:
-    :param kwargs: look up k, match the value found against v. v can be a list of terms.
-        If there are multiple k,v pairs, any match is a match
-    :return:
-    """
+    """Yield nodes that match at least one of the requested property filters."""
 
     def _get_node_property(N, key):
         try:
@@ -266,21 +198,9 @@ def _get_any_nodes_by_prop(G, **kwargs):
                 break
 
 
-# SETTERS ON PROPS
-
-
 def set_node_props_value(G, *nodes, default=None, **props):
-    """
-    Add property to nodes with a name from key in props. Value is either a scalar or a dict with node ids as keys.
-    :param G:
-    :param nodes: "props" only applies to these specific nodes each given as a set, list or scalar
-    :param default: Nodes not in the intersection between "nodes" and keys of "props"
-        dict will be given a default value if this is specified
-    :param props: scalar OR {"property_name": {node_id0: value0, node_id1: value1, ...}}
-    :return: None
-    """
-    # collect nodes
-    nodes = list(nodes)  # it is a tuple so we can't do index assignment
+    """Set node properties from scalar values or per-node mappings."""
+    nodes = list(nodes)
     for i, ns in enumerate(nodes):
         if np.isscalar(ns):
             nodes[i] = {ns}
@@ -302,9 +222,7 @@ def set_node_props_value(G, *nodes, default=None, **props):
                 else:
                     for n in nodes & assign.keys():
                         G.nodes[n][propname] = assign[n]
-
         else:
-            # assign scalar
             if default is not None:
                 for n, d in G.nodes(data=True):
                     d[propname] = default
@@ -313,18 +231,8 @@ def set_node_props_value(G, *nodes, default=None, **props):
 
 
 def set_edge_props_value(G, *edges, default=None, **props):
-    """
-    Add property to edges with a name from key in props. Value is either a scalar or a dict with edge ids as keys.
-    :param G:
-    :param edges: "props" only applies to these specific edges each given as a set, list or scalar
-    :param default: Edges not in the intersection between "edges" and keys of "props"
-        dict will be given a default value if this is specified
-    :param props: scalar OR
-        {"property_name": {(source_node0, target_node0): value0, (source_node1, target_node1): value1, ...}}
-    :return: None
-    """
-    # collect nodes
-    edges = list(edges)  # it is a tuple so we can't do index assignment
+    """Set edge properties from scalar values or per-edge mappings."""
+    edges = list(edges)
     for i, es in enumerate(edges):
         if type(es) == tuple:
             edges[i] = {es}
@@ -346,9 +254,7 @@ def set_edge_props_value(G, *edges, default=None, **props):
                 else:
                     for e in edges & assign.keys():
                         G.edges[e][propname] = assign[e]
-
         else:
-            # assign scalar
             if default is not None:
                 for u, v, d in G.edges(data=True):
                     d[propname] = default
@@ -357,6 +263,8 @@ def set_edge_props_value(G, *edges, default=None, **props):
 
 
 def get_edge_prop_func(G, func, default=None):
+    """Return an edge-to-value mapping produced by ``func`` over edge data."""
+
     def f(d):
         try:
             return func(d)
@@ -370,14 +278,7 @@ def get_edge_prop_func(G, func, default=None):
 
 
 def set_node_props_func(G, *nodes, default=None, **funcs):
-    """
-    Apply function to prop of nodes in G, then set a prop for those nodes to the function output.
-    :param G:
-    :param nodes:
-    :param default:
-    :param funcs: keys are new name for prop, value is a function that takes the prop dict as input
-    :return:
-    """
+    """Set node properties using functions evaluated against node data."""
     set_node_props_value(
         G,
         *nodes,
@@ -386,14 +287,7 @@ def set_node_props_func(G, *nodes, default=None, **funcs):
 
 
 def set_edge_props_func(G, *nodes, default=None, **funcs):
-    """
-    Apply function to prop of nodes in G, then set a prop for those nodes to the function output.
-    :param G:
-    :param nodes:
-    :param default:
-    :param funcs: keys are new name for prop, value is a function that takes the prop dict as input
-    :return:
-    """
+    """Set edge properties using functions evaluated against edge data."""
     set_edge_props_value(
         G,
         *nodes,
@@ -402,6 +296,7 @@ def set_edge_props_func(G, *nodes, default=None, **funcs):
 
 
 def set_node_props(G, *nodes, default=None, **props):
+    """Set node properties, dispatching callables to ``set_node_props_func``."""
     funcs = {k: v for k, v in props.items() if callable(v)}
     props = {k: v for k, v in props.items() if not callable(v)}
     if len(props) > 0:
@@ -411,6 +306,7 @@ def set_node_props(G, *nodes, default=None, **props):
 
 
 def set_edge_props(G, *edges, default=None, **props):
+    """Set edge properties, dispatching callables to ``set_edge_props_func``."""
     funcs = {k: v for k, v in props.items() if callable(v)}
     props = {k: v for k, v in props.items() if not callable(v)}
     if len(props) > 0:
@@ -420,13 +316,7 @@ def set_edge_props(G, *edges, default=None, **props):
 
 
 def outgoing_inherit(G, key, newkey=None):
-    """
-    Outgoing edges inherit a property from the node.
-    :param G:
-    :param key: name of node property
-    :param newkey: name of new edge property, default same as "key"
-    :return:
-    """
+    """Copy a node property onto each outgoing edge from that node."""
     if newkey is None:
         newkey = key
     for u, v, d in G.edges(data=True):
@@ -434,24 +324,14 @@ def outgoing_inherit(G, key, newkey=None):
 
 
 def set_outgoing(D, **kwargs):
-    """
-    Add properties to outgoing edges from specified nodes.
-    :param D: (multi) directed graph
-    :param kwargs: keys are names of prop to add, values are dicts mapping from node id to value to add.
-    :return: None
-    """
+    """Annotate each edge with values looked up from its source node."""
     for prop_name, node2value in kwargs.items():
         for u, v, d in D.edges(data=True):
             d[prop_name] = node2value[u]
 
 
 def set_ingoing(D, **kwargs):
-    """
-    Add properties to ingoing edges from specified nodes.
-    :param D: (multi) directed graph
-    :param kwargs: keys are names of prop to add, values are dicts mapping from node id to value to add.
-    :return: None
-    """
+    """Annotate each edge with values looked up from its target node."""
     for prop_name, node2value in kwargs.items():
         for u, v, d in D.edges(data=True):
             d[prop_name] = node2value[v]
@@ -460,7 +340,6 @@ def set_ingoing(D, **kwargs):
 def _get_inv_props(**kwargs):
     inv = {}
     for prop_name, node2value in kwargs.items():
-        # necessary for indegree and outdegree view
         node2value = dict(node2value)
         keys, values = dict_keys(node2value), dict_values(node2value)
         inv[f"1/{prop_name}"] = dict(zip(keys, 1 / values))
@@ -468,42 +347,25 @@ def _get_inv_props(**kwargs):
 
 
 def set_outgoing_inv(D, **kwargs):
-    """
-    Add properties and the inverse (1/value) version named 1/name
-    :param D: (multi) directed graph
-    :param kwargs:
-    :return:
-    """
+    """Set outgoing edge properties and matching inverse-valued properties."""
     set_outgoing(D, **kwargs, **_get_inv_props(**kwargs))
 
 
 def set_ingoing_inv(D, **kwargs):
-    """
-    Add properties and the inverse (1/value) version named 1/name
-    :param D: (multi) directed graph
-    :param kwargs:
-    :return:
-    """
+    """Set incoming edge properties and matching inverse-valued properties."""
     set_ingoing(D, **kwargs, **_get_inv_props(**kwargs))
 
 
 def set_ingoing_indegree(D):
-    """
-    Avoid divide by zero by excluding degree node annotations of zero.
-    Since it is going to be added to the incoming edges,
-        if indegree is zero then the 1/0 doesn't get added to anything anyways.
-    :param D:
-    :return:
-    """
+    """Annotate incoming edges with indegree and reciprocal indegree."""
     set_ingoing_inv(
         D,
-        indegree={
-            n: degree for n, degree in dict(D.in_degree()).items() if degree != 0
-        },
+        indegree={n: degree for n, degree in dict(D.in_degree()).items() if degree != 0},
     )
 
 
 def set_outgoing_outdegree(D):
+    """Annotate outgoing edges with outdegree and reciprocal outdegree."""
     set_outgoing_inv(
         D,
         outdegree={
@@ -513,19 +375,12 @@ def set_outgoing_outdegree(D):
 
 
 def set_indegrees(D, indegrees=None, *keys):
-    """
-    Add node indegree and 1/indegree property to ingoing edges in D.
-    :param D: directed graph
-    :param indegrees: dict mapping from dbId to indegree. Default is calculating from D
-    :param keys: indegree keys matches this node property, e.g. "dbId"
-    :return: None
-    """
+    """Add indegree and reciprocal indegree properties to edges."""
     if indegrees is None:
         indegrees = D.in_degree()
         for u, v, d in D.edges(data=True):
             d["indegree"] = indegrees[v]
             d["1/indegree"] = 1 / d["indegree"]
-
     else:
         mapping = get_node_prop_dict(D, D.nodes, *keys)
         for u, v, d in D.edges(data=True):
@@ -546,23 +401,13 @@ def set_indegrees(D, indegrees=None, *keys):
 
 
 def set_marks(D, start_nodes, end_nodes):
+    """Mark two node sets as ``start`` and ``end``."""
     set_node_props_value(D, mark={n: "start" for n in start_nodes})
     set_node_props_value(D, mark={n: "end" for n in end_nodes})
 
 
-# GETTERS
-
-
 def get_max_nodes(D, prop, n=1, include=None, exclude=None):
-    """
-    Get nodes with the highest value in a given prop.
-    :param D: DirectedGraph
-    :param prop: key of property with values to compare
-    :param n: number of tied top nodes to return
-    :param include: set of nodes to include, default is all nodes.
-    :param exclude: set of nodes to exclude, default is D.graph["node_sets"]["sources"] and D.graph["node_sets"]["targets"]
-    :return:
-    """
+    """Return tied top nodes for the given property after include/exclude filters."""
     if include is None:
         include = D.nodes
     else:
@@ -575,7 +420,7 @@ def get_max_nodes(D, prop, n=1, include=None, exclude=None):
         exclude = D.node_set(exclude)
     nodes = set(include) - set(exclude)
     if len(nodes) == 0:
-        logging.warning(f"No nodes given include and exclude sets.")
+        logging.warning("No nodes given include and exclude sets.")
         return set()
     prop_dict = D.getd(prop, nodes=nodes)
     if len(prop_dict) == 0:
@@ -587,6 +432,7 @@ def get_max_nodes(D, prop, n=1, include=None, exclude=None):
 
 
 def get_min_nodes(D, prop, n=1, include=None, exclude=None):
+    """Return tied bottom nodes for the given property after include/exclude filters."""
     if include is None:
         include = D.nodes
     else:
@@ -599,62 +445,49 @@ def get_min_nodes(D, prop, n=1, include=None, exclude=None):
         exclude = D.node_set(exclude)
     nodes = set(include) - set(exclude)
     if len(nodes) == 0:
-        logging.warning(f"No nodes given include and exclude sets.")
+        logging.warning("No nodes given include and exclude sets.")
         return set()
     prop_dict = D.getd(prop, nodes=nodes)
     if len(prop_dict) == 0:
         logging.warning(
-            f'No node property "{prop}" for the given include and exclude sets.'
+            f'No node property "{prop}" for the given include and exclude set.'
         )
         return set()
     return dict_min_ties(prop_dict, n)
 
 
-# MODIFY
-
-
 def flat_props(G):
-    """
-    Move arango properties from a dict under key "properties" to the main/top-level dict for each node.
-    :param G:
-    :return: None
-    """
+    """Flatten a nested ``properties`` mapping onto each node dictionary."""
     for n, d in G.nodes(data=True):
         for k, v in d["properties"].items():
             d[k] = v
         del d["properties"]
 
 
-### GET PROPERTIES
-
-
 def get_node_prop_keys(G, nodes=None):
-    """
-    Get all unique node property keys for either all nodes in G or a subset.
-    :param G:
-    :param nodes: node set
-    :return: set of node property keys
-    """
+    """Return all node property keys across the graph or a node subset."""
     if nodes is None:
         nodes = set(G)
     return set.union(set(), *(G.nodes[n].keys() for n in nodes))
 
 
 def get_node_prop(G, key, nodes=None):
+    """Return a list of node property values for ``key``."""
     if nodes is None:
         return [d.get(key) for n, d in G.nodes(data=True)]
-    else:
-        return [G.nodes[n].get(key) for n in nodes if n in G]
+    return [G.nodes[n].get(key) for n in nodes if n in G]
 
 
 def get_edge_prop(G, key, edges=None):
+    """Return a list of edge property values for ``key``."""
     if edges is None:
         return [d.get(key) for u, v, d in G.edges(data=True)]
-    else:
-        return [G.edges[e].get(key) for e in edges if e in G.edges]
+    return [G.edges[e].get(key) for e in edges if e in G.edges]
 
 
 def get_node_prop_func(G, func, nodes=None, default=None):
+    """Return a node-to-value mapping produced by ``func`` over node data."""
+
     def f(d):
         try:
             return func(d)
@@ -672,93 +505,78 @@ def get_node_prop_func(G, func, nodes=None, default=None):
 
 
 def get_node_props(G, keys, nodes=None):
+    """Return tuples of node property values for the requested keys."""
     if nodes is None:
         return [tuple(d[k] for k in keys) for n, d in G.nodes(data=True)]
-    else:
-        return [tuple(G.nodes[n][k] for k in keys) for n in nodes]
+    return [tuple(G.nodes[n][k] for k in keys) for n in nodes]
 
 
 def get_edge_props(G, keys, edges=None):
+    """Return tuples of edge property values for the requested keys."""
     if edges is None:
         return [tuple(d.get(k) for k in keys) for u, v, d in G.edges(data=True)]
-    else:
-        return [tuple(G.edges[e].get(k) for k in keys) for e in edges]
+    return [tuple(G.edges[e].get(k) for k in keys) for e in edges]
 
 
 def get_all_node_props(G, nodes=None):
+    """Return all node data dictionaries, optionally restricted to ``nodes``."""
     if nodes is None:
         return [d for n, d in G.nodes(data=True)]
     return [G.nodes[n] for n in nodes]
 
 
 def get_node_prop_dict(G, key, nodes=None):
+    """Return a node-to-property mapping for nodes that have ``key``."""
     if nodes is None:
         return {n: d[key] for n, d in G.nodes(data=True) if key in d}
-    else:
-        return {n: G.nodes[n][key] for n in nodes if n in G and key in G.nodes[n]}
+    return {n: G.nodes[n][key] for n in nodes if n in G and key in G.nodes[n]}
 
 
 def get_edge_prop_dict(G, key, edges=None):
+    """Return an edge-to-property mapping, including multigraph edge keys."""
     if not G.is_multigraph():
         if edges is None:
             return {(u, v): d[key] for u, v, d in G.edges(data=True) if key in d}
-        else:
-            return {e: G.edges[e][key] for e in edges & G.edges if key in G.edges[e]}
-    else:
-        if edges is None:
-            return {
-                (u, v, k): d[key]
-                for u, v, k, d in G.edges(data=True, keys=True)
-                if key in d
-            }
-        else:
-            # make sure we have (u, v, k) tuples
-            return {
-                e: G.edges[e][key]
-                for e in from_multi_edges(G, edges) & G.edges
-                if key in G.edges[e]
-            }
+        return {e: G.edges[e][key] for e in edges & G.edges if key in G.edges[e]}
+    if edges is None:
+        return {
+            (u, v, k): d[key]
+            for u, v, k, d in G.edges(data=True, keys=True)
+            if key in d
+        }
+    return {
+        e: G.edges[e][key]
+        for e in from_multi_edges(G, edges) & G.edges
+        if key in G.edges[e]
+    }
 
 
 def get_node_props_dict(G, keys, nodes=None):
+    """Return a node-to-tuple mapping for the requested property keys."""
     if nodes is None:
         return {n: tuple(d[k] for k in keys) for n, d in G.nodes(data=True)}
-    else:
-        return {n: tuple(G.nodes[n][k] for k in keys) for n in nodes if n in G}
+    return {n: tuple(G.nodes[n][k] for k in keys) for n in nodes if n in G}
 
 
 def get_edge_props_dict(G, keys, edges=None):
+    """Return an edge-to-tuple mapping for the requested property keys."""
     if not G.is_multigraph():
         if edges is None:
             return {(u, v): tuple(d[k] for k in keys) for u, v, d in G.edges(data=True)}
-        else:
-            return {
-                e: tuple(G.edges[e][k] for k in keys) for e in edges if e in G.edges
-            }
-    else:
-        if edges is None:
-            return {
-                (u, v, k): tuple(d[pk] for pk in keys)
-                for u, v, k, d in G.edges(data=True, keys=True)
-            }
-        else:
-            # make sure we have (u, v, k) tuples
-            return {
-                e: tuple(G.edges[e][pk] for pk in keys)
-                for e in from_multi_edges(G, edges) & G.edges
-            }
-
-
-### EDGE SPECIFIC
+        return {e: tuple(G.edges[e][k] for k in keys) for e in edges if e in G.edges}
+    if edges is None:
+        return {
+            (u, v, k): tuple(d[pk] for pk in keys)
+            for u, v, k, d in G.edges(data=True, keys=True)
+        }
+    return {
+        e: tuple(G.edges[e][pk] for pk in keys)
+        for e in from_multi_edges(G, edges) & G.edges
+    }
 
 
 def from_multi_edge(M, multi_edge):
-    """
-    Get all edges for a multi graph given a multi edge
-    :param M: multi graph
-    :param multi_edge: meant for (u, v) but handles (u, v, k)
-    :return: iterable of (u, v, k)
-    """
+    """Expand a multigraph edge specifier into concrete ``(u, v, key)`` edges."""
     if not M.has_edge(*multi_edge):
         return []
     try:
@@ -769,4 +587,5 @@ def from_multi_edge(M, multi_edge):
 
 
 def from_multi_edges(M, multi_edges):
+    """Expand many multigraph edge specifiers into keyed edge tuples."""
     return {e for me in multi_edges for e in from_multi_edge(M, me)}
