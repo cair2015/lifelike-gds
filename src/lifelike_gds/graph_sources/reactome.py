@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
-from pathway_graphx.utils import get_id
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.utils import get_id
 
 logger = logging.getLogger(__name__)
 

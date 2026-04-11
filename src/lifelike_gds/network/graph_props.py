@@ -5,7 +5,7 @@ import logging
 import networkx as nx
 import numpy as np
 
-from pathway_graphx.network.collection_utils import (
+from lifelike_gds.network.collection_utils import (
     dict_keys,
     dict_max_ties,
     dict_min_ties,

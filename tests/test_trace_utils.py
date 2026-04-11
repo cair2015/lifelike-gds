@@ -2,8 +2,8 @@ from copy import deepcopy
 
 from networkx.readwrite import json_graph
 
-from pathway_graphx.network.graph_utils import DirectedGraph, MultiDirectedGraph
-from pathway_graphx.network.trace_utils import (
+from lifelike_gds.network.graph_utils import DirectedGraph, MultiDirectedGraph
+from lifelike_gds.network.trace_utils import (
     add_trace_network,
     get_trace_detail_graphs,
     get_traced_edges,

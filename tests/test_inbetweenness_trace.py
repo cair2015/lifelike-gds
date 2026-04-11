@@ -1,7 +1,7 @@
 import pandas as pd
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.network.inbetweenness_trace import InBetweennessTrace
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.network.inbetweenness_trace import InBetweennessTrace
 
 
 class FakeDatabase:

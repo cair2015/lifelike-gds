@@ -7,8 +7,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 
 import pandas as pd
 
-from pathway_graphx.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
-from pathway_graphx.utils.config_utils import read_config
+from lifelike_gds.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
+from lifelike_gds.utils.config_utils import read_config
 
 
 class Database:

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from pathway_graphx.graph_sources.biocyc_db import BiocycDB
+from lifelike_gds.graph_sources.biocyc_db import BiocycDB
 
 
 def make_biocyc_db():

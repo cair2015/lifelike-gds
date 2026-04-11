@@ -9,15 +9,15 @@ import numpy as np
 import pandas as pd
 import simplejson as json
 
-from pathway_graphx.utils.excel_utils import write as xl_u_write
+from lifelike_gds.utils.excel_utils import write as xl_u_write
 
-from pathway_graphx.network.collection_utils import dict_max
-from pathway_graphx.network.graph_algorithms import (
+from lifelike_gds.network.collection_utils import dict_max
+from lifelike_gds.network.graph_algorithms import (
     all_shortest_paths_subgraph,
     shortest_paths_subgraph,
     simple_paths_subgraph,
 )
-from pathway_graphx.network.graph_utils import DirectedGraph, MultiDirectedGraph
+from lifelike_gds.network.graph_utils import DirectedGraph, MultiDirectedGraph
 
 
 def read_json(fname):

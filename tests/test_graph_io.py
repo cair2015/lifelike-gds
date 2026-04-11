@@ -7,31 +7,31 @@ from pathlib import Path
 import networkx as nx
 import numpy as np
 
-from pathway_graphx.network.graph_utils import DirectedGraph
+from lifelike_gds.network.graph_utils import DirectedGraph
 
 
 def load_graph_io_module():
-    fake_excel_utils = types.ModuleType("pathway_graphx.utils.excel_utils")
+    fake_excel_utils = types.ModuleType("lifelike_gds.utils.excel_utils")
     fake_excel_utils.write = lambda *args, **kwargs: None
-    fake_utils_pkg = types.ModuleType("pathway_graphx.utils")
+    fake_utils_pkg = types.ModuleType("lifelike_gds.utils")
     fake_utils_pkg.__path__ = []
 
-    original_excel = sys.modules.get("pathway_graphx.utils.excel_utils")
-    original_utils = sys.modules.get("pathway_graphx.utils")
-    sys.modules["pathway_graphx.utils"] = fake_utils_pkg
-    sys.modules["pathway_graphx.utils.excel_utils"] = fake_excel_utils
+    original_excel = sys.modules.get("lifelike_gds.utils.excel_utils")
+    original_utils = sys.modules.get("lifelike_gds.utils")
+    sys.modules["lifelike_gds.utils"] = fake_utils_pkg
+    sys.modules["lifelike_gds.utils.excel_utils"] = fake_excel_utils
     try:
-        sys.modules.pop("pathway_graphx.network.graph_io", None)
-        return importlib.import_module("pathway_graphx.network.graph_io")
+        sys.modules.pop("lifelike_gds.network.graph_io", None)
+        return importlib.import_module("lifelike_gds.network.graph_io")
     finally:
         if original_utils is not None:
-            sys.modules["pathway_graphx.utils"] = original_utils
+            sys.modules["lifelike_gds.utils"] = original_utils
         else:
-            sys.modules.pop("pathway_graphx.utils", None)
+            sys.modules.pop("lifelike_gds.utils", None)
         if original_excel is not None:
-            sys.modules["pathway_graphx.utils.excel_utils"] = original_excel
+            sys.modules["lifelike_gds.utils.excel_utils"] = original_excel
         else:
-            sys.modules.pop("pathway_graphx.utils.excel_utils", None)
+            sys.modules.pop("lifelike_gds.utils.excel_utils", None)
 
 
 def test_serializable_node_link_data_converts_sets_and_numpy_ints():

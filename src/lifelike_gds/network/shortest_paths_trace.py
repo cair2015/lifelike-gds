@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional, TypeAlias
 
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
-from pathway_graphx.network.trace_utils import add_trace_network
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_utils import add_trace_network
 
 logger = logging.getLogger(__name__)
 

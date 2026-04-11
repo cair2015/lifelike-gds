@@ -1,6 +1,6 @@
 import networkx as nx
 
-from pathway_graphx.network.graph_props import (
+from lifelike_gds.network.graph_props import (
     from_multi_edge,
     from_multi_edges,
     get_edge_prop_dict,

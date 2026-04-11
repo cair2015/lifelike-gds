@@ -2,8 +2,8 @@ import json
 
 import pandas as pd
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 
 class FakeDatabase:

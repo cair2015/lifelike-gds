@@ -1,6 +1,6 @@
 import math
 
-from pathway_graphx.network.graph_algorithms import (
+from lifelike_gds.network.graph_algorithms import (
     all_shortest_paths_through_any,
     get_all_shortest_paths,
     get_shortest_paths_plus_n,
@@ -8,7 +8,7 @@ from pathway_graphx.network.graph_algorithms import (
     shortest_paths,
     shortest_through,
 )
-from pathway_graphx.network.graph_utils import DirectedGraph
+from lifelike_gds.network.graph_utils import DirectedGraph
 
 
 def build_demo_graph():

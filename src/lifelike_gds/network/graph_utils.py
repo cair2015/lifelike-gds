@@ -5,11 +5,11 @@ import networkx as nx
 import numpy as np
 import sys
 
-from pathway_graphx.network.collection_utils import (
+from lifelike_gds.network.collection_utils import (
     dict2str,
     union as clxn_u_union,
 )
-from pathway_graphx.network.graph_props import (
+from lifelike_gds.network.graph_props import (
     from_multi_edges,
     get_all_node_props,
     get_node_prop,

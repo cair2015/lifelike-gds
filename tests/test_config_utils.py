@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pathway_graphx.utils import config_utils
+from lifelike_gds.utils import config_utils
 
 
 def reset_env_loader():

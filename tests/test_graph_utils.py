@@ -1,4 +1,4 @@
-from pathway_graphx.network.graph_utils import (
+from lifelike_gds.network.graph_utils import (
     DirectedGraph,
     MultiDirectedGraph,
     get_leaves,

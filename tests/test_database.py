@@ -1,6 +1,6 @@
 import pandas as pd
 
-from pathway_graphx.graph_sources.database import Database
+from lifelike_gds.graph_sources.database import Database
 
 
 class FakeNeo4jConnection:
@@ -48,9 +48,9 @@ def make_database(monkeypatch, config=None, **kwargs):
         holder["connection"] = connection
         return connection
 
-    monkeypatch.setattr("pathway_graphx.graph_sources.database.Neo4jConnection", fake_connection)
+    monkeypatch.setattr("lifelike_gds.graph_sources.database.Neo4jConnection", fake_connection)
     monkeypatch.setattr(
-        "pathway_graphx.graph_sources.database.read_config",
+        "lifelike_gds.graph_sources.database.read_config",
         lambda name: config
         or {
             "uri": "bolt://cfg",

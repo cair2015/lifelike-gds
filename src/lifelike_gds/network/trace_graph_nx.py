@@ -16,12 +16,12 @@ from pathlib import Path
 import networkx as nx
 import pandas as pd
 
-from pathway_graphx.network import GraphSource
-from pathway_graphx.network.groups import set_default_groups
-from pathway_graphx.network.graph_utils import MultiDirectedGraph, DirectedGraph
-from pathway_graphx.network.trace_utils import add_trace_network, get_traced_nodes
-from pathway_graphx.network.trace_graph_utils import write_sankey_file, write_cytoscape_file
-from pathway_graphx.network.collection_utils import dict_max_ties, dict_min_ties
+from lifelike_gds.network import GraphSource
+from lifelike_gds.network.groups import set_default_groups
+from lifelike_gds.network.graph_utils import MultiDirectedGraph, DirectedGraph
+from lifelike_gds.network.trace_utils import add_trace_network, get_traced_nodes
+from lifelike_gds.network.trace_graph_utils import write_sankey_file, write_cytoscape_file
+from lifelike_gds.network.collection_utils import dict_max_ties, dict_min_ties
 logger = logging.getLogger(__name__)
 
 

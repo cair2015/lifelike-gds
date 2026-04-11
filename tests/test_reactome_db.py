@@ -1,6 +1,6 @@
 import pandas as pd
 
-from pathway_graphx.graph_sources.reactome_db import ReactomeDB
+from lifelike_gds.graph_sources.reactome_db import ReactomeDB
 
 
 def make_reactome_db():

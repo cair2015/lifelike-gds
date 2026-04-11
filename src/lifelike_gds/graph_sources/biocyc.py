@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.utils import get_id
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.utils import get_id
 
 logger = logging.getLogger(__name__)
 

@@ -11,14 +11,14 @@ from typing import List, Dict, Optional, Tuple
 
 import pandas as pd
 
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
-from pathway_graphx.network.trace_graph_utils import (
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_utils import (
     add_pagerank,
     set_nReach,
     set_intersection_pagerank,
 )
-from pathway_graphx.network.trace_utils import add_trace_network
-from pathway_graphx.network.collection_utils import dict_max_ties
+from lifelike_gds.network.trace_utils import add_trace_network
+from lifelike_gds.network.collection_utils import dict_max_ties
 
 logger = logging.getLogger(__name__)
 

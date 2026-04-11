@@ -1,4 +1,4 @@
-import pathway_graphx.graph_sources as graph_sources
+import lifelike_gds.graph_sources as graph_sources
 
 
 def test_graph_sources_package_exports_expected_symbols():

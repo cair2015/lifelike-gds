@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from pathway_graphx.utils.pandas_utils import index2column
+from lifelike_gds.utils.pandas_utils import index2column
 
 
 def write(fname, sheets: dict, indexes=None, format=True):

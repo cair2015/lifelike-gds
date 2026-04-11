@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from pathway_graphx.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
+from lifelike_gds.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
 
 
 class FakeSession:
@@ -50,7 +50,7 @@ def test_neo4j_connection_uses_driver_and_returns_records(monkeypatch):
         captured["driver"] = driver
         return driver
 
-    monkeypatch.setattr("pathway_graphx.graph_sources.neo4j_utils.GraphDatabase.driver", fake_driver)
+    monkeypatch.setattr("lifelike_gds.graph_sources.neo4j_utils.GraphDatabase.driver", fake_driver)
 
     connection = Neo4jConnection(
         uri="bolt://localhost:7687",
@@ -76,7 +76,7 @@ def test_neo4j_connection_uses_driver_and_returns_records(monkeypatch):
 def test_neo4j_connection_dataframe_and_single_value(monkeypatch):
     rows = [{"value": 7, "name": "alpha"}]
     monkeypatch.setattr(
-        "pathway_graphx.graph_sources.neo4j_utils.GraphDatabase.driver",
+        "lifelike_gds.graph_sources.neo4j_utils.GraphDatabase.driver",
         lambda *args, **kwargs: FakeDriver(rows),
     )
 
@@ -91,7 +91,7 @@ def test_neo4j_connection_dataframe_and_single_value(monkeypatch):
 
 def test_neo4j_connection_single_value_raises_for_empty_results(monkeypatch):
     monkeypatch.setattr(
-        "pathway_graphx.graph_sources.neo4j_utils.GraphDatabase.driver",
+        "lifelike_gds.graph_sources.neo4j_utils.GraphDatabase.driver",
         lambda *args, **kwargs: FakeDriver([]),
     )
     connection = Neo4jConnection("bolt://db", "u", "p")

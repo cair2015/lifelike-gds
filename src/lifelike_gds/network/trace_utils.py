@@ -3,13 +3,13 @@ import logging
 import networkx as nx
 
 
-from pathway_graphx.network.graph_algorithms import (
+from lifelike_gds.network.graph_algorithms import (
     all_node_minsum_paths,
     all_node_maxsum_paths,
     get_shortest_paths_plus_n,
 )
 
-from pathway_graphx.network.graph_utils import (
+from lifelike_gds.network.graph_utils import (
     DirectedGraph,
     MultiDirectedGraph,
     get_path_edges,

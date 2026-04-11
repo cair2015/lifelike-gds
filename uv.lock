@@ -1297,7 +1297,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pathway-graphx"
+name = "lifelike-gds"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [

@@ -21,7 +21,7 @@ def _require_env(*names: str) -> None:
 def test_neo4j_reactome_connection_and_datasource_creation() -> None:
     _require_env("NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD")
 
-    from pathway_graphx.graph_sources import Reactome, ReactomeDB
+    from lifelike_gds.graph_sources import Reactome, ReactomeDB
 
     database = ReactomeDB(database="neo4j")
     try:
@@ -37,8 +37,8 @@ def test_neo4j_reactome_connection_and_datasource_creation() -> None:
 def test_neo4j_reactome_graph_projection_loads_into_tracegraph() -> None:
     _require_env("NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD")
 
-    from pathway_graphx.graph_sources import Reactome, ReactomeDB
-    from pathway_graphx.network.trace_graph_nx import TraceGraphNx
+    from lifelike_gds.graph_sources import Reactome, ReactomeDB
+    from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
     database = ReactomeDB(database="neo4j")
     try:

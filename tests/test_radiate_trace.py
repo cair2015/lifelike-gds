@@ -1,7 +1,7 @@
 import pandas as pd
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.network.radiate_trace import RadiateTrace
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.network.radiate_trace import RadiateTrace
 
 
 class FakeDatabase:

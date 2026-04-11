@@ -1,6 +1,6 @@
 import numpy as np
 
-from pathway_graphx.network.collection_utils import (
+from lifelike_gds.network.collection_utils import (
     agg_by_all,
     argmax,
     argmax_ties,

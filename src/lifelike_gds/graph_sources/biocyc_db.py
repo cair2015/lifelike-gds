@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from pathway_graphx.graph_sources.biocyc import (
+from lifelike_gds.graph_sources.biocyc import (
     Biocyc,
     CURRENCY_METABOLITE_LABEL,
     DEFAULT_EXCLUDED_NODE_LABELS as BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS,
     EDGE_DESC_DICT,
 )
-from pathway_graphx.graph_sources.database import Database
+from lifelike_gds.graph_sources.database import Database
 
 DEFAULT_EXCLUDED_NODE_LABELS = BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS
 

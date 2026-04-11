@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 import sys
 
-from pathway_graphx.network.collection_utils import (
+from lifelike_gds.network.collection_utils import (
     dict_take,
     dict_take_values
 )
-from pathway_graphx.network.graph_utils import (
+from lifelike_gds.network.graph_utils import (
     DirectedGraph,
     get_edge_path,
     get_unique_edges,

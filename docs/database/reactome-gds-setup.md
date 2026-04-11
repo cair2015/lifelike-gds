@@ -1,8 +1,8 @@
-# Build Reactome GraphDB for PathwayGraphX
+# Build Reactome GraphDB for Lifelike GDS
 
 ## Overview
 
-This document provides instructions for building and optimizing a Reactome GraphDB instance compatible with Neo4j Graph Data Science (GDS) analytics for PathwayGraphX. The process involves downloading the Reactome dump file, migrating it from older Neo4j versions if needed, configuring memory settings, and performing data cleanup and restructuring to optimize the graph for analysis.
+This document provides instructions for building and optimizing a Reactome GraphDB instance compatible with Neo4j Graph Data Science (GDS) analytics for Lifelike GDS. The process involves downloading the Reactome dump file, migrating it from older Neo4j versions if needed, configuring memory settings, and performing data cleanup and restructuring to optimize the graph for analysis.
 
 **Reactome Version:** 95 (or latest available)
 

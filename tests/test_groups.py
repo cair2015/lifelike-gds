@@ -1,6 +1,6 @@
 import networkx as nx
 
-from pathway_graphx.network.groups import get_groups, set_default_groups
+from lifelike_gds.network.groups import get_groups, set_default_groups
 
 
 def test_get_groups_reuses_existing_group_for_same_source_when_query_matches_sources():

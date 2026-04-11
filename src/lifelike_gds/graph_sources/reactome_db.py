@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from pathway_graphx.graph_sources.database import Database
-from pathway_graphx.graph_sources.reactome import (
+from lifelike_gds.graph_sources.database import Database
+from lifelike_gds.graph_sources.reactome import (
     ALLOWED_NODE_ENTITY_TYPES,
     CURRENCY_METABOLITE_LABEL,
     DEFAULT_EXCLUDED_NODE_LABELS as REACTOME_DEFAULT_EXCLUDED_NODE_LABELS,

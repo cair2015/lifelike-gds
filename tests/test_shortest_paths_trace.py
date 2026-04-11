@@ -1,7 +1,7 @@
 import pandas as pd
 
-from pathway_graphx.network.graph_source import GraphSource
-from pathway_graphx.network.shortest_paths_trace import (
+from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.network.shortest_paths_trace import (
     InteractionPathTrace,
     ShortestPathTrace,
 )

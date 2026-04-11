@@ -1,8 +1,8 @@
 import networkx as nx
 import pandas as pd
 
-from pathway_graphx.graph_sources.reactome import Reactome
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.graph_sources.reactome import Reactome
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 
 class FakeDatabase:

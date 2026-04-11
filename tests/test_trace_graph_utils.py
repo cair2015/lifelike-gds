@@ -4,7 +4,7 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-from pathway_graphx.network.trace_graph_utils import (
+from lifelike_gds.network.trace_graph_utils import (
     add_pagerank,
     get_node_set_nodes,
     k_shortest_paths,
@@ -14,7 +14,7 @@ from pathway_graphx.network.trace_graph_utils import (
     set_nReach,
     write_cytoscape_file,
 )
-from pathway_graphx.network.graph_utils import DirectedGraph, MultiDirectedGraph
+from lifelike_gds.network.graph_utils import DirectedGraph, MultiDirectedGraph
 
 
 def build_graph():

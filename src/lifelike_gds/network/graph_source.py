@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 import pandas as pd
 
-from pathway_graphx.utils import get_id
+from lifelike_gds.utils import get_id
 
 if TYPE_CHECKING:
-    from pathway_graphx.network.graph_utils import DirectedGraph
-    from pathway_graphx.network.trace_graph_nx import TraceGraphNx
+    from lifelike_gds.network.graph_utils import DirectedGraph
+    from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 
 class GraphSource(ABC):

@@ -18,8 +18,8 @@ import networkx as nx
 import pandas as pd
 from networkx.exception import NetworkXNoPath, NodeNotFound
 
-from pathway_graphx.network.graph_io import read_gpickle, serializable_node_link_data, write_json
-from pathway_graphx.network.graph_algorithms import add_influence_contribution
+from lifelike_gds.network.graph_io import read_gpickle, serializable_node_link_data, write_json
+from lifelike_gds.network.graph_algorithms import add_influence_contribution
 
 logger = logging.getLogger(__name__)
 

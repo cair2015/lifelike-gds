@@ -1,10 +1,10 @@
-# PathwayGraphX
+# Lifelike GDS
 
-PathwayGraphX provides graph database analysis tools focused on Neo4j-backed Reactome workflows. The canonical Python package is `pathway_graphx`.
+Lifelike GDS provides graph database analysis tools focused on Neo4j-backed Reactome workflows. The canonical Python package is `lifelike_gds`.
 
 ## Project Overview
 
-PathwayGraphX is designed for:
+Lifelike GDS is designed for:
 - Neo4j-backed Reactome graph exploration
 - Network analysis and shortest path algorithms
 - Radiate analysis for exploring pathway connectivity
@@ -31,15 +31,15 @@ just test
 
 ## Package Names
 
-- Distribution name: `pathway-graphx`
-- Canonical import package: `pathway_graphx`
+- Distribution name: `lifelike-gds`
+- Canonical import package: `lifelike_gds`
 
 ## Project Structure
 
 ```text
 .
 ├── src/
-│   └── pathway_graphx/        # Canonical package
+│   └── lifelike_gds/        # Canonical package
 │       ├── graph_sources/     # Graph-source classes and Neo4j adapters
 │       ├── network/           # Shared graph analysis code
 │       └── utils/             # Utilities

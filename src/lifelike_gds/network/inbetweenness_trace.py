@@ -5,8 +5,8 @@ This module provides betweenness centrality analysis to identify influential nod
 and pathways connecting source and target nodes. Works with any database backend.
 """
 
-from pathway_graphx.network.trace_graph_nx import TraceGraphNx
-from pathway_graphx.network.trace_graph_utils import \
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_utils import \
     set_edge_weight_by_source_node_weight, remove_edge_prop, all_shortest_paths
 import networkx as nx
 import logging
