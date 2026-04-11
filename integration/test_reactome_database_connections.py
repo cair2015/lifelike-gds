@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 
+
 import dotenv
 import pytest
+pytestmark = pytest.mark.integration
 
 dotenv.load_dotenv()
 
