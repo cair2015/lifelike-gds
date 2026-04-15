@@ -618,3 +618,11 @@ RETURN count(n) AS labeled_nodes;
 - **APOC Requirements:** Some operations require the APOC library to be installed
 - **Backup:** Always maintain a backup of the original dump before running cleanup operations
 - **Monitoring:** Monitor query execution time and memory usage during cleanup operations
+
+
+---
+# Add fulltext index
+```
+CREATE FULLTEXT INDEX entity_name_fulltext IF NOT EXISTS
+FOR (n:PhysicalEntity) ON EACH [n.name]
+```
