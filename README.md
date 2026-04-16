@@ -12,8 +12,6 @@ This repository is intended as:
 - a working space for refactoring legacy graph-analysis utilities
 - a reference point for Neo4j-backed Reactome querying and tracing workflows
 
-The project is not currently under active feature development. It is being rounded out and preserved as a personal fork in its current refactored state.
-
 Lifelike GDS is designed for:
 
 - Neo4j-backed Reactome graph exploration
