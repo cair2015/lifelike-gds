@@ -454,7 +454,15 @@ class Reactome(GraphSource):
 
 
 
-
+if __name__ == "__main__":
+    import os, dotenv
+    dotenv.load_dotenv()
+    database = ReactomeDB(os.getenv('ARANGO_DATABASE', 'reactome'),
+                          os.getenv('ARANGO_URI', 'localhost'), 
+                          os.getenv('ARANGO_USER', 'root'), 
+                          os.getenv('ARANGO_PASSWORD', ''))
+    nodes = database.get_entity_nodes_by_chebi_ids(['17336'])
+    print(nodes)
 
 
 

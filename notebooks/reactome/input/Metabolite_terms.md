@@ -49,3 +49,4 @@ Common pathway form: cis-aconitate(3−) → CHEBI:16383
 - hydroperoxy fatty acid (CHEBI:64009)
 
 
+No matches found for FIGLU (Formiminoglutamate) and cis-Aconitic acid. 
