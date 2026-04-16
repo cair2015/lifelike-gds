@@ -30,8 +30,19 @@ setuptools.setup(
         "networkx<3.0",
         "scipy>=1.9",
         "python-arango>=7.6",
+        "python-dotenv>=1.0",
         "xlsxwriter>=3.0",
+        "neo4j>=5.28.3"
     ],
+    extras_require={
+        "dev": [
+            "black~=21.9b0",
+            "pre-commit~=2.15.0",
+            "pytest~=6.2.5",
+            "build",
+            "jupyterlab",
+        ],
+    },
     package_data={"lifelike_gds": ["**/*.yml"]},
     include_package_data=True,
 )

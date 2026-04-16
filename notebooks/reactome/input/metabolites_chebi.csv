@@ -1,0 +1,25 @@
+original_name,chebi-id,note
+Vitamin A,CHEBI:12777,generic term
+Vitamin A,CHEBI:17336,common pathway form (all-trans-retinol)
+Vitamin C,CHEBI:176783,generic term
+Vitamin C,CHEBI:29073,neutral acid form (L-ascorbic acid)
+Vitamin C,CHEBI:38290,common pathway form (L-ascorbate)
+Vitamin E,CHEBI:33234,generic term
+Vitamin E,CHEBI:22470,common pathway form (alpha-tocopherol)
+Glutathione,CHEBI:16856,neutral compound
+Glutathione,CHEBI:57925,common pathway form (glutathionate(1−))
+Glutathione,CHEBI:177535,reduced form (L-Glutathione reduced)
+Alpha-lipoic acid,CHEBI:16494,synonym maps to lipoic acid
+Alpha-lipoic acid,CHEBI:30313,common pathway form (lipoate)
+Dihomo-γ-linolenic acid (DGLA),CHEBI:53486,neutral acid
+Dihomo-γ-linolenic acid (DGLA),CHEBI:71589,common pathway form (dihomo-γ-linolenate)
+Dihomo-γ-linolenic acid (DGLA),CHEBI:183405,ethyl ester
+cis-Aconitic acid,CHEBI:32805,neutral acid
+cis-Aconitic acid,CHEBI:16383,common pathway form (cis-aconitate(3−))
+taurine,CHEBI:15891,taurine
+taurine,CHEBI:507393,common pathway form (taurine zwitterion)
+taurine,CHEBI:32970,related conjugate acid of 2-aminoethanesulfonate
+FIGLU (Formiminoglutamate),CHEBI:7274,neutral acid form (N-formimidoyl-L-glutamic acid)
+FIGLU (Formiminoglutamate),CHEBI:18327,common pathway form (N-formimidoyl-L-glutamate(2−))
+Lipid peroxides,CHEBI:61051,related class term (lipid hydroperoxide)
+Lipid peroxides,CHEBI:64009,possible pathway component subclass (hydroperoxy fatty acid)

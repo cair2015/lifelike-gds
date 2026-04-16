@@ -6,19 +6,46 @@ If you have just started working on the project, see the below sections for guid
 
 **Conda Users**: Follow the instructions [here](#setup-for-conda-users) first!
 
-## Setup pipenv
+## Setup Python Virtual Environment
 
-First, install [pipenv](https://pypi.org/project/pipenv/) on your machine if you haven't already. [These](https://pipenv.pypa.io/en/latest/install/) instructions will walk you through installation.
+This project currently requires Python `3.9`.
 
-Once you have successfully installed pipenv, run the following in the root directory of the project:
+Create and activate a virtual environment in the root directory of the project:
 
 ```bash
-pipenv sync
+python3.9 -m venv .venv
+source .venv/bin/activate
 ```
 
-This will create a new python virtual environment, and install all packages specified in the pipfile in that environment.
+Then install the project and development tools in editable mode:
 
-**Note:** You may need to add pipenv to your system's `PATH` variable. [This](https://pipenv.pypa.io/en/latest/install/#pragmatic-installation-of-pipenv) section of the installation steps above address modifying your `PATH`.
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+This will create a local virtual environment and install the package along with the development dependencies used by this project.
+
+## Environment Variables
+
+Database connection settings can be stored in a project-level `.env` file such as:
+
+```bash
+ARANGO_USER="your-username"
+ARANGO_PASSWORD="your-password"
+ARANGO_HOST="http://your-arango-host:8529"
+ARANGO_DATABASE="your-database"
+```
+
+To load that file in Python before reading environment variables, use:
+
+```python
+from lifelike_gds.utils.env_utils import load_project_env
+
+load_project_env()
+```
+
+After that, existing `os.getenv(...)` calls will read values from `.env` when the file is present.
 
 ## Configure Editor to use Python Virtual Environment
 
@@ -60,19 +87,18 @@ Next, open up your workspace settings file and add the following to the `setting
 
 Your workspace should now recognize all packages installed in the virtualenv you specified.
 
-**Note:** If you aren't sure where your virtualenv is located, you should be able to find it by running: `pipenv --venv`. This will output the absolute path to the currently active virtualenv.
+**Note:** If you use the setup steps above, your virtual environment will be located at `.venv` in the project root.
 
 ### PyCharm
 
-Follow the instructions [here](https://www.jetbrains.com/help/pycharm/pipenv.html#pipenv-existing-project) to setup a pipenv environment.
+Follow the instructions [here](https://www.jetbrains.com/help/pycharm/creating-virtual-environment.html) to point PyCharm at the project's existing `.venv` environment.
 
 ## Setup for Conda Users
 
 1. Create an environment using the Anaconda Prompt: `conda create -n <environment-name> python=3.9`
-2. In Anaconda Navigator switch to that environment at the dropdown menu after “Applications on”
-3. Install for that environment Spyder (You can also install PyCharms if you prefer).
-4. Open Spyder for the gdsaddn environment.
-5. On the IPython console run: `pip install /path/to/GDS-repo`. This finds and installs all dependencies automatically.
+2. Activate it: `conda activate <environment-name>`
+3. Install the project and development tools: `python -m pip install -e ".[dev]"`
+4. Open your editor or notebook environment using that conda environment.
 
 Also, see [this](https://github.com/SBRG/GDS/blob/master/docs/GDS_Conda_Install_Notes.docx) document, which the above instructions are sourced from.
 
@@ -84,4 +110,4 @@ VS Code users may also find [these](https://dev.to/adamlombard/how-to-use-the-bl
 
 ## Configure Pre-Commit
 
-Before your commits can automatically be checked for style/formatting issues, you need to setup your git hooks to use `pre-commit`. Make sure you've installed pipenv and setup your virtual environment as described above, and then simply run `pre-commit install`. This will update your `.git/hooks/pre-commit` script to run `pre-commit` any time you commit changes.
+Before your commits can automatically be checked for style/formatting issues, you need to setup your git hooks to use `pre-commit`. Make sure you've created and activated your virtual environment as described above, and then simply run `pre-commit install`. This will update your `.git/hooks/pre-commit` script to run `pre-commit` any time you commit changes.

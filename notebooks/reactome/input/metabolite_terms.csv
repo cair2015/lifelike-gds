@@ -1,0 +1,11 @@
+original_name,metabolite_yes_no,preferred_name,reactome_search_term,notes
+Vitamin A,Yes,Retinol,retinol,Family term; also try retinal or retinoic acid if needed.
+Vitamin C,Yes,Ascorbate (L-ascorbic acid),ascorbate,Also search L-ascorbic acid.
+Vitamin E,Yes,alpha-Tocopherol,alpha-tocopherol,Family term; alpha-tocopherol is the best first search.
+Glutathione,Yes,Glutathione,glutathione,Also try GSH and GSSG.
+Alpha-lipoic acid,Yes,Lipoic acid,lipoic acid,Also called thioctic acid.
+Dihomo-γ-linolenic acid (DGLA),Yes,Dihomo-gamma-linolenic acid,dihomo-gamma-linolenic acid,Also try DGLA or 20:3(n-6).
+cis-Aconitic acid,Yes,cis-Aconitate,cis-aconitate,Often indexed as cis-aconitate rather than cis-aconitic acid.
+Lipid peroxides,"Broad class, not single metabolite",Lipid hydroperoxides,lipid hydroperoxide,Broad term; may need a more specific lipid class or species.
+Taurine,Yes,Taurine,taurine,Also called 2-aminoethanesulfonic acid.
+FIGLU (Formiminoglutamate),Yes,N-formiminoglutamate,N-formiminoglutamate,Also try FIGLU or formiminoglutamate.
