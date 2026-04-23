@@ -10,9 +10,11 @@ This module provides helper functions for trace graph operations, including:
 All functions are database-agnostic and work with NetworkX graphs.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
-from typing import List, Dict, Any, Optional, Set
+from typing import Any
 
 import networkx as nx
 import pandas as pd
@@ -22,6 +24,10 @@ from lifelike_gds.network.graph_io import read_gpickle, serializable_node_link_d
 from lifelike_gds.network.graph_algorithms import add_influence_contribution
 
 logger = logging.getLogger(__name__)
+
+GraphLike = nx.DiGraph | nx.MultiDiGraph
+NodeId = int | str
+NodePath = list[NodeId]
 
 
 # ============================================================================
@@ -40,7 +46,7 @@ def convert_gpickle_to_json(gpicklefile: str) -> None:
     write_json(D, jsonfile)
 
 
-def write_sankey_file(filename: str, D) -> None:
+def write_sankey_file(filename: str, D: GraphLike) -> None:
     """
     Export graph to Sankey format JSON file.
     
@@ -61,7 +67,7 @@ def write_sankey_file(filename: str, D) -> None:
     write_json(data, filename)
 
 
-def write_cytoscape_file(filename: str, D) -> None:
+def write_cytoscape_file(filename: str, D: GraphLike) -> None:
     """
     Export graph to Cytoscape-compatible JSON format.
     Creates parent directories as needed.
@@ -83,7 +89,7 @@ def write_cytoscape_file(filename: str, D) -> None:
     write_json(data, filename)
 
 
-def link_index(data: Dict) -> None:
+def link_index(data: dict[str, Any]) -> None:
     """
     Replace edge references in trace networks with array indices.
     
@@ -126,10 +132,10 @@ def link_index(data: Dict) -> None:
 # ============================================================================
 
 def add_pagerank(
-    graph,
+    graph: GraphLike,
     sources: str,
     pagerank_prop: str = "pagerank",
-    personalization: Optional[Dict[int, float]] = None,
+    personalization: dict[int, float] | None = None,
     reverse: bool = False,
     contribution: bool = False,
     tol: float = 1e-7,
@@ -182,10 +188,10 @@ def add_pagerank(
 
 
 def pagerank_influence(
-    D,
+    D: GraphLike,
     sources_name: str,
-    personalization: Optional[Dict] = None,
-    weight: Optional[str] = None,
+    personalization: dict[NodeId, float] | None = None,
+    weight: str | None = None,
     method: str = "iteration",
     tol: float = 1e-6,
 ) -> pd.DataFrame:
@@ -238,7 +244,7 @@ def pagerank_influence(
     return df
 
 
-def set_nReach(graph, sources: str, reverse: bool = False) -> None:
+def set_nReach(graph: GraphLike, sources: str, reverse: bool = False) -> None:
     """
     Set node property indicating number of reachable sources.
     
@@ -277,10 +283,10 @@ def set_nReach(graph, sources: str, reverse: bool = False) -> None:
 
 
 def set_intersection_pagerank(
-    graph,
+    graph: GraphLike,
     source_pagerank_name: str,
     target_rev_pagerank_name: str,
-    intersect_pagerank_name: Optional[str] = None,
+    intersect_pagerank_name: str | None = None,
 ) -> None:
     """
     Calculate intersection PageRank combining forward and reverse PageRank.
@@ -336,12 +342,12 @@ def set_intersection_pagerank(
 # ============================================================================
 
 def k_shortest_paths(
-    G,
-    source: int,
-    target: int,
+    G: GraphLike,
+    source: NodeId,
+    target: NodeId,
     k: int = 1,
-    weight: Optional[str] = None,
-) -> List[List[int]]:
+    weight: str | None = None,
+) -> list[NodePath]:
     """
     Find k shortest paths between source and target.
     
@@ -369,11 +375,11 @@ def k_shortest_paths(
 
 
 def single_shortest_paths(
-    G,
-    sources: Set[int],
-    targets: Set[int],
-    weight: Optional[str] = None,
-) -> List[List[int]]:
+    G: GraphLike,
+    sources: set[NodeId],
+    targets: set[NodeId],
+    weight: str | None = None,
+) -> list[NodePath]:
     """
     Find single shortest path from each source to each target.
     
@@ -396,10 +402,10 @@ def single_shortest_paths(
 
 
 def _all_shortest_paths(
-    D,
-    source: int,
-    target: int,
-    weight: Optional[str] = None,
+    D: GraphLike,
+    source: NodeId,
+    target: NodeId,
+    weight: str | None = None,
 ):
     """
     Generator for all shortest paths between source and target.
@@ -421,11 +427,11 @@ def _all_shortest_paths(
 
 
 def all_shortest_paths(
-    D,
-    sources: Set[int],
-    targets: Set[int],
-    weight: Optional[str] = None,
-) -> List[List[int]]:
+    D: GraphLike,
+    sources: set[NodeId],
+    targets: set[NodeId],
+    weight: str | None = None,
+) -> list[NodePath]:
     """
     Find all shortest paths from any source to any target.
     
@@ -447,11 +453,11 @@ def all_shortest_paths(
 
 
 def all_node_maxsum_paths(
-    D,
-    sources: Set[int],
-    targets: Set[int],
+    D: GraphLike,
+    sources: set[NodeId],
+    targets: set[NodeId],
     node_weight: str,
-) -> List[List[int]]:
+) -> list[NodePath]:
     """
     Find shortest paths weighted by node properties (max-sum).
     
@@ -475,9 +481,9 @@ def all_node_maxsum_paths(
 
 
 def set_edge_weight_by_source_node_weight(
-    D,
+    D: GraphLike,
     edge_weight_prop: str,
-    node_weight_prop: Optional[str] = None,
+    node_weight_prop: str | None = None,
     inverse: bool = True,
 ) -> None:
     """
@@ -500,7 +506,7 @@ def set_edge_weight_by_source_node_weight(
             d[edge_weight_prop] = u_wt
 
 
-def remove_edge_prop(D, edge_prop_name: str) -> None:
+def remove_edge_prop(D: GraphLike, edge_prop_name: str) -> None:
     """
     Remove property from all edges in graph.
     
@@ -517,7 +523,7 @@ def remove_edge_prop(D, edge_prop_name: str) -> None:
 # Node Set Functions
 # ============================================================================
 
-def get_node_set_nodes(D) -> Set[int]:
+def get_node_set_nodes(D: GraphLike) -> set[NodeId]:
     """
     Get all nodes that belong to any named node set in graph.
     

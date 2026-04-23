@@ -6,7 +6,7 @@ Neo4j-backed database adapters. Shared tracing algorithms live in
 ``lifelike_gds.network``.
 """
 
-from lifelike_gds.graph_sources.database import Database
+from lifelike_gds.graph_sources.database import Database, Neo4jDatabase
 from lifelike_gds.graph_sources.biocyc import Biocyc
 from lifelike_gds.graph_sources.biocyc_db import BiocycDB
 from lifelike_gds.graph_sources.neo4j_utils import Neo4jConnection, Neo4jQueryBuilder
@@ -21,6 +21,7 @@ __all__ = [
     "BiocycDB",
     "Database",
     "GraphSource",
+    "Neo4jDatabase",
     "Neo4jConnection",
     "Neo4jQueryBuilder",
     "Reactome",

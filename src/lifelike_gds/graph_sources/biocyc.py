@@ -2,31 +2,19 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Optional
 
+from lifelike_gds.graph_sources.domain_config import (
+    BIOCYC_CURRENCY_METABOLITE_LABEL,
+    BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS,
+    BIOCYC_EDGE_DESC_DICT,
+)
 from lifelike_gds.network.graph_source import GraphSource
 from lifelike_gds.utils import get_id
 
-logger = logging.getLogger(__name__)
-
-CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
-DEFAULT_EXCLUDED_NODE_LABELS = [CURRENCY_METABOLITE_LABEL]
-
-EDGE_DESC_DICT = {
-    "ELEMENT_OF": "is element of",
-    "ENCODES": "encodes",
-    "MODIFIED_TO": "is modified to",
-    "COMPONENT_OF": "is component of",
-    "CONSUMED_BY": "is consumed by",
-    "PRODUCES": "produces",
-    "IN_PATHWAY": "is in",
-    "CATALYZES": "catalyzes",
-    "REGULATES": "regulates",
-    "HAS_GENE": "contains",
-    "ACTIVATES": "activates",
-    "INHIBITS": "inhibits",
-}
+CURRENCY_METABOLITE_LABEL = BIOCYC_CURRENCY_METABOLITE_LABEL
+DEFAULT_EXCLUDED_NODE_LABELS = list(BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS)
+EDGE_DESC_DICT = dict(BIOCYC_EDGE_DESC_DICT)
 
 
 class Biocyc(GraphSource):
@@ -84,38 +72,3 @@ class Biocyc(GraphSource):
             edge_type = edge.get("type") or edge.get("label")
             if start_node and end_node and edge_type:
                 self.set_edge_description(graph, start_node, end_node, edge_type, key=edge.get("key"))
-
-    def initiate_trace_graph(
-        self,
-        tracegraph: Any,
-        exclude_node_labels: Optional[List[str]] = None,
-    ) -> None:
-        node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_node_labels=exclude_node_labels,
-        )
-        self.populate_tracegraph(tracegraph, node_rows, rel_rows)
-        logger.info(
-            "Loaded BioCyc trace graph: nodes=%s edges=%s",
-            tracegraph.graph.number_of_nodes(),
-            tracegraph.graph.number_of_edges(),
-        )
-
-    def load_graph_to_tracegraph(
-        self,
-        tracegraph: Any,
-        exclude_nodes: Optional[List[int]] = None,
-        exclude_node_labels: Optional[List[str]] = None,
-    ) -> None:
-        node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_nodes=exclude_nodes,
-            exclude_node_labels=exclude_node_labels,
-        )
-        self.populate_tracegraph(tracegraph, node_rows, rel_rows)
-        logger.info(
-            "Loaded BioCyc graph projection: nodes=%s edges=%s",
-            tracegraph.graph.number_of_nodes(),
-            tracegraph.graph.number_of_edges(),
-        )
-
-    def get_node_data_for_excel(self, node_ids: List[int]):
-        return self.database.get_node_data_for_excel(node_ids)

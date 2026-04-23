@@ -2,81 +2,28 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
 
+from lifelike_gds.graph_sources.domain_config import (
+    REACTOME_ALLOWED_NODE_ENTITY_TYPES,
+    REACTOME_CURRENCY_METABOLITE_LABEL,
+    REACTOME_DEFAULT_EXCLUDED_NODE_LABELS,
+    REACTOME_EDGE_DESC_DICT,
+    REACTOME_TRACE_RELATIONSHIP_TYPES,
+    REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF,
+)
 from lifelike_gds.network.graph_source import GraphSource
-from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 from lifelike_gds.utils import get_id
 
-logger = logging.getLogger(__name__)
-
-ALLOWED_NODE_ENTITY_TYPES = [
-    "Chemical",
-    "Protein",
-    "Entity",
-    "Reaction",
-    "Gene",
-    "Compound",
-    "Species",
-    "Study",
-    "Pathway",
-    "Phenotype",
-    "Anatomy",
-    "Lab Strain",
-    "Note",
-    "Cause",
-    "Observation",
-    "Association",
-    "Effect",
-    "Correlation",
-    "Map",
-    "Link",
-    "Lab Sample",
-    "Food",
-    "Phenomena",
-    "Company",
-    "Mutation",
-]
-
-REACTOME_TRACE_RELS = [
-    "activeUnitOf",
-    "candidateOf",
-    "catalystOf",
-    "catalyzes",
-    "componentOf",
-    "input",
-    "memberOf",
-    "output",
-    "regulates",
-    "regulatorOf",
-    "repeatedUnitOf",
-    "requiredInput",
-]
-REACTOME_TRACE_RELS_WITH_REF = REACTOME_TRACE_RELS + ["referenceEntity"]
-
-CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
-DEFAULT_EXCLUDED_NODE_LABELS = [CURRENCY_METABOLITE_LABEL]
-
-EDGE_DESC_DICT = {
-    "activeUnitOf": "is active unit of",
-    "candidateOf": "is candidate of",
-    "catalystOf": "is catalyst of",
-    "catalyzes": "catalyzes",
-    "componentOf": "is component of",
-    "hasComponent": "has component",
-    "input": "is consumed by",
-    "memberOf": "is member of",
-    "output": "produces",
-    "referenceEntity": "has reference entity",
-    "regulates": "regulates",
-    "regulatorOf": "is regulator of",
-    "repeatedUnitOf": "is repeated unit of",
-    "requiredInput": "is required input for",
-}
+ALLOWED_NODE_ENTITY_TYPES = list(REACTOME_ALLOWED_NODE_ENTITY_TYPES)
+REACTOME_TRACE_RELS = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
+REACTOME_TRACE_RELS_WITH_REF = list(REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF)
+CURRENCY_METABOLITE_LABEL = REACTOME_CURRENCY_METABOLITE_LABEL
+DEFAULT_EXCLUDED_NODE_LABELS = list(REACTOME_DEFAULT_EXCLUDED_NODE_LABELS)
+EDGE_DESC_DICT = dict(REACTOME_EDGE_DESC_DICT)
 
 
 class Reactome(GraphSource):
@@ -123,38 +70,6 @@ class Reactome(GraphSource):
             return
         node_gene_names = self.database.get_gene_names(nodes)
         nx.set_node_attributes(graph, node_gene_names, "gene_names")
-
-    def initiate_trace_graph(
-        self,
-        tracegraph: Any,
-        exclude_node_labels: Optional[List[str]] = None,
-    ) -> None:
-        node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_node_labels=exclude_node_labels,
-        )
-        self.populate_tracegraph(tracegraph, node_rows, rel_rows)
-        logger.info(
-            "Loaded Reactome trace graph: nodes=%s edges=%s",
-            tracegraph.graph.number_of_nodes(),
-            tracegraph.graph.number_of_edges(),
-        )
-
-    def load_graph_to_tracegraph(
-        self,
-        tracegraph: TraceGraphNx,
-        exclude_nodes: Optional[List[int]] = None,
-        exclude_node_labels: Optional[List[str]] = None,
-    ) -> None:
-        node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_nodes=exclude_nodes,
-            exclude_node_labels=exclude_node_labels,
-        )
-        self.populate_tracegraph(tracegraph, node_rows, rel_rows)
-        logger.info(
-            "Loaded Reactome graph projection: nodes=%s edges=%s",
-            tracegraph.graph.number_of_nodes(),
-            tracegraph.graph.number_of_edges(),
-        )
 
     @classmethod
     def set_edge_description(
@@ -203,6 +118,3 @@ class Reactome(GraphSource):
             edge_type = edge.get("type") or edge.get("label")
             if start_node and end_node and edge_type:
                 self.set_edge_description(graph, start_node, end_node, edge_type, key=edge.get("key"))
-
-    def get_node_data_for_excel(self, node_ids: List[int]):
-        return self.database.get_node_data_for_excel(node_ids)

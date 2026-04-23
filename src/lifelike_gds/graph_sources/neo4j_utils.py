@@ -70,7 +70,9 @@ class Neo4jConnection:
         parameters: Optional[Dict[str, Any]] = None,
         database: Optional[str] = None,
     ) -> Result:
-        """Execute a Cypher query and return the raw Neo4j result."""
+        """Execute a Cypher query and return the raw Neo4j result.
+        
+        """
         if parameters is None:
             parameters = {}
 

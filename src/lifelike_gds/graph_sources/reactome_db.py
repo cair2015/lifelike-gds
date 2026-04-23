@@ -5,27 +5,32 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from lifelike_gds.graph_sources.database import Database
-from lifelike_gds.graph_sources.reactome import (
-    ALLOWED_NODE_ENTITY_TYPES,
-    CURRENCY_METABOLITE_LABEL,
-    DEFAULT_EXCLUDED_NODE_LABELS as REACTOME_DEFAULT_EXCLUDED_NODE_LABELS,
-    EDGE_DESC_DICT,
-    REACTOME_TRACE_RELS,
-    REACTOME_TRACE_RELS_WITH_REF,
-    Reactome,
+from lifelike_gds.graph_sources.database import Neo4jDatabase
+from lifelike_gds.graph_sources.domain_config import (
+    REACTOME_ALLOWED_NODE_ENTITY_TYPES,
+    REACTOME_CURRENCY_METABOLITE_LABEL,
+    REACTOME_DEFAULT_EXCLUDED_NODE_LABELS,
+    REACTOME_EDGE_DESC_DICT,
+    REACTOME_TRACE_RELATIONSHIP_TYPES,
+    REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF,
 )
+from lifelike_gds.graph_sources.reactome import Reactome
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_EXCLUDED_NODE_LABELS = REACTOME_DEFAULT_EXCLUDED_NODE_LABELS
+ALLOWED_NODE_ENTITY_TYPES = list(REACTOME_ALLOWED_NODE_ENTITY_TYPES)
+CURRENCY_METABOLITE_LABEL = REACTOME_CURRENCY_METABOLITE_LABEL
+DEFAULT_EXCLUDED_NODE_LABELS = list(REACTOME_DEFAULT_EXCLUDED_NODE_LABELS)
+EDGE_DESC_DICT = dict(REACTOME_EDGE_DESC_DICT)
+REACTOME_TRACE_RELS = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
+REACTOME_TRACE_RELS_WITH_REF = list(REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF)
 
 
-class ReactomeDB(Database):
+class ReactomeDB(Neo4jDatabase):
     """Neo4j query adapter for the Reactome graph."""
 
     DEFAULT_EXCLUDED_NODE_LABELS = tuple(REACTOME_DEFAULT_EXCLUDED_NODE_LABELS)
-    TRACE_RELATIONSHIP_TYPES = tuple(REACTOME_TRACE_RELS)
+    TRACE_RELATIONSHIP_TYPES = tuple(REACTOME_TRACE_RELATIONSHIP_TYPES)
 
     def __init__(
         self,

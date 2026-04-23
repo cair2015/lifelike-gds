@@ -24,11 +24,6 @@ dependencies = [
     "pytest>=9.0.3",
 ]
 
-[dependency-groups]
-dev = [
-    "jupyter>=1.1.1",
-]
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 

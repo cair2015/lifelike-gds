@@ -1,2 +1,0 @@
-jupyter labextension install @jupyter-widgets/jupyterlab-manager jupyterlab-spreadsheet
-conda install -y ipyspin

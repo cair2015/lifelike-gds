@@ -1,11 +1,14 @@
 """Helpers for assigning stable group ids to trace records."""
 
+from __future__ import annotations
+
 import logging
+from typing import Any
 
 import numpy as np
 
 
-def get_groups(trace_network):
+def get_groups(trace_network: dict[str, Any]) -> np.ndarray:
     """
     Return group ids for each trace in a trace-network payload.
 
@@ -39,8 +42,13 @@ def get_groups(trace_network):
     return groups
 
 
-def set_default_groups(D):
-    """Populate missing ``group`` fields across the graph's trace networks."""
+def set_default_groups(D: Any) -> None:
+    """
+    Populate missing ``group`` fields across the graph's trace networks.
+
+    Args:
+        D: Graph whose ``graph["trace_networks"]`` payload should be normalized.
+    """
     if "trace_networks" not in D.graph:
         logging.warning("No trace networks to set group for.")
     elif all("group" in t for tn in D.graph["trace_networks"] for t in tn["traces"]):

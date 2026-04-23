@@ -7,6 +7,7 @@ def test_graph_sources_package_exports_expected_symbols():
         "BiocycDB",
         "Database",
         "GraphSource",
+        "Neo4jDatabase",
         "Neo4jConnection",
         "Neo4jQueryBuilder",
         "Reactome",

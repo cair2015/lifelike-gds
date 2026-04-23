@@ -5,11 +5,20 @@ This module provides betweenness centrality analysis to identify influential nod
 and pathways connecting source and target nodes. Works with any database backend.
 """
 
-from lifelike_gds.network.trace_graph_nx import TraceGraphNx
-from lifelike_gds.network.trace_graph_utils import \
-    set_edge_weight_by_source_node_weight, remove_edge_prop, all_shortest_paths
-import networkx as nx
+from __future__ import annotations
+
 import logging
+from collections.abc import Iterable
+from typing import Any
+
+import networkx as nx
+
+from lifelike_gds.network.trace_graph_nx import TraceGraphNx
+from lifelike_gds.network.trace_graph_utils import (
+    all_shortest_paths,
+    remove_edge_prop,
+    set_edge_weight_by_source_node_weight,
+)
 
 
 class InBetweennessTrace(TraceGraphNx):
@@ -20,10 +29,10 @@ class InBetweennessTrace(TraceGraphNx):
     source and target node sets. Database-agnostic implementation.
     """
     
-    def __init__(self, graphsource, multigraph: bool = True):
+    def __init__(self, graphsource: Any, multigraph: bool = True) -> None:
         super().__init__(graphsource, multigraph=multigraph)
 
-    def get_betweenness_prop_name(self, sources, targets):
+    def get_betweenness_prop_name(self, sources: str, targets: str) -> str:
         """
         Generate property name for betweenness values.
         
@@ -36,7 +45,13 @@ class InBetweennessTrace(TraceGraphNx):
         """
         return f"{sources}_{targets}_betweenness"
 
-    def compute_inbetweenness(self, sources, targets, inbetweenness_prop_name=None, pagerank_prop=None):
+    def compute_inbetweenness(
+        self,
+        sources: str,
+        targets: str,
+        inbetweenness_prop_name: str | None = None,
+        pagerank_prop: str | None = None,
+    ) -> None:
         """
         Compute betweenness for paths from sources to destination, and save the value to given node property
         Args:
@@ -55,7 +70,7 @@ class InBetweennessTrace(TraceGraphNx):
             tempkey = 'edge_wt'
             set_edge_weight_by_source_node_weight(self.graph, tempkey, pagerank_prop)
 
-        inbetweenness = dict()
+        inbetweenness: dict[Any, float] = {}
         for source_id in source_nodes:
             for target_id in target_nodes:
                 # get all shortest paths between source and target
@@ -82,16 +97,23 @@ class InBetweennessTrace(TraceGraphNx):
         if tempkey:
             remove_edge_prop(self.graph, tempkey)
 
-    def _freq_count(self, items:[]):
+    def _freq_count(self, items: Iterable[Any]) -> dict[Any, int]:
         """
-        Count list item frequence, retuern dict of item-freq count
+        Count item frequencies in an iterable.
         """
-        freqs = {i:0 for i in items}
+        items = list(items)
+        freqs = {i: 0 for i in items}
         for k in freqs.keys():
             freqs[k] = items.count(k)
         return freqs
 
-    def export_inbetweenness_data(self, sources, targets, filename, do_compute=False):
+    def export_inbetweenness_data(
+        self,
+        sources: str,
+        targets: str,
+        filename: str,
+        do_compute: bool = False,
+    ) -> None:
         if do_compute:
             self.compute_inbetweenness(sources, targets)
         prop_name = self.get_betweenness_prop_name(sources, targets)
@@ -107,9 +129,10 @@ class InBetweennessTrace(TraceGraphNx):
         self, 
         selected_nodeset: str,
         sources: str, 
-        weighted_prop,
-        trace_name='Sources to selected',
-        shortest_paths_plus_n=0):
+        weighted_prop: str,
+        trace_name: str = 'Sources to selected',
+        shortest_paths_plus_n: int = 0,
+    ) -> None:
         self.add_selected_nodes_traces_combined_network(
             selected_nodeset, 
             weighted_prop, 
@@ -123,9 +146,10 @@ class InBetweennessTrace(TraceGraphNx):
         self, 
         selected_nodeset: str, 
         targets: str, 
-        weighted_prop,
-        trace_name='Selected to targets',
-        shortest_paths_plus_n=0):
+        weighted_prop: str,
+        trace_name: str = 'Selected to targets',
+        shortest_paths_plus_n: int = 0,
+    ) -> None:
         self.add_selected_nodes_traces_combined_network(
             selected_nodeset, 
             weighted_prop, 
@@ -137,11 +161,11 @@ class InBetweennessTrace(TraceGraphNx):
 
     def add_inbetweenness_trace_networks_with_selected_nodes(
         self, 
-        select, 
-        sources, 
-        targets,
-        shortest_paths_plus_n=0
-    ):
+        select: str, 
+        sources: str, 
+        targets: str,
+        shortest_paths_plus_n: int = 0,
+    ) -> None:
         """
         Add two traces: source to selected nodes, selected nodes to targets
         Args:
@@ -167,10 +191,16 @@ class InBetweennessTrace(TraceGraphNx):
             shortest_paths_plus_n=shortest_paths_plus_n)
 
 
-    def add_inbetweenness_trace_networks_with_selected_nodes_original(self, selected_nodes, sources, targets, 
-                                                             include_allshortest_path=True,
-                                                             do_compute=False, add_graphdesc=True,
-                                                             shortest_paths_plus_n=0):
+    def add_inbetweenness_trace_networks_with_selected_nodes_original(
+        self,
+        selected_nodes: list[dict[str, Any]],
+        sources: str,
+        targets: str,
+        include_allshortest_path: bool = True,
+        do_compute: bool = False,
+        add_graphdesc: bool = True,
+        shortest_paths_plus_n: int = 0,
+    ) -> None:
         """
         Add two traces: source to selected nodes, selected nodes to targets
         Args:
@@ -192,7 +222,13 @@ class InBetweennessTrace(TraceGraphNx):
             self.add_graph_description(f"Traces from {sources} to {len(selected_nodes)} selected nodes;")
             self.add_graph_description(f"Traces from {len(selected_nodes)} selected nodes to {targets};")
 
-    def add_best_n_inbetweenness_nodes_to_trace_networks(self, sources, targets, num=10, do_compute=False):
+    def add_best_n_inbetweenness_nodes_to_trace_networks(
+        self,
+        sources: str,
+        targets: str,
+        num: int = 10,
+        do_compute: bool = False,
+    ) -> None:
         """
         Add best n nodes.  Need to add more filters for the best nodes
         e.g. excluding EntitySet for reactome graph, excluding nodes based on num of source node reaches

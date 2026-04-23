@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import itertools
 import logging
+import sys
+from collections.abc import Iterable, Iterator, Sequence
+from typing import Any
+
 import networkx as nx
-from networkx.exception import NetworkXNoPath, NodeNotFound
 import numpy as np
 import pandas as pd
-import sys
+from networkx.exception import NetworkXNoPath, NodeNotFound
 
 from lifelike_gds.network.collection_utils import (
     dict_take,
@@ -19,6 +24,12 @@ from lifelike_gds.network.graph_utils import (
 )
 
 logging.basicConfig(format="%(message)s", level=logging.INFO)
+
+GraphLike = DirectedGraph | nx.DiGraph | nx.MultiDiGraph
+NodeId = Any
+NodePath = list[NodeId]
+NodeCollection = str | int | Sequence[NodeId] | set[NodeId]
+Weight = str | None
 
 ### CENTRALITY AND INFLUENCE
 
@@ -42,8 +53,14 @@ logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 
 def eigenvector_influence(
-    G, sources, w=None, weight="weight", numpy_method=False, tol=1.0e-6, max_iter=500
-):
+    G: GraphLike,
+    sources: NodeCollection,
+    w: float | None = None,
+    weight: str = "weight",
+    numpy_method: bool = False,
+    tol: float = 1.0e-6,
+    max_iter: int = 500,
+) -> dict[NodeId, float]:
     """
     Modified eigenvector centrality measuring how much nodes are influenced by "start_nodes"
     :param G: networkx graph
@@ -73,7 +90,11 @@ def eigenvector_influence(
         )
 
 
-def eigenvector_influence_dangling(G, sources, w):
+def eigenvector_influence_dangling(
+    G: GraphLike,
+    sources: NodeCollection,
+    w: float,
+) -> dict[NodeId, float]:
     """
     Modified eigenvector centrality measuring how much nodes are influenced by "start_nodes"
     :param G: networkx graph
@@ -94,7 +115,14 @@ def eigenvector_influence_dangling(G, sources, w):
     return nx.eigenvector_centrality(g, nstart=nstart, weight="weight", max_iter=500)
 
 
-def katz_influence(G, sources, w=None, weight="weight", tol=1.0e-6, max_iter=1000):
+def katz_influence(
+    G: GraphLike,
+    sources: NodeCollection,
+    w: float | None = None,
+    weight: str = "weight",
+    tol: float = 1.0e-6,
+    max_iter: int = 1000,
+) -> dict[NodeId, float]:
     """
     Modified katz centrality measuring how much nodes are influenced by "start_nodes"
     :param G: networkx graph
@@ -116,7 +144,12 @@ def katz_influence(G, sources, w=None, weight="weight", tol=1.0e-6, max_iter=100
     )
 
 
-def add_influence_contribution(D, reverse=False, weight="weight", **node_prop_keys):
+def add_influence_contribution(
+    D: GraphLike,
+    reverse: bool = False,
+    weight: str = "weight",
+    **node_prop_keys: str,
+) -> None:
     """
     Edges are annotated with influence contribution 2-tuples where the first value is the edge size at the source and the second value is the edge size at the target.
     If "reverse" is False (default) that will be equivalent to a tuple (source node centrality influence * edge weight / sum(source node outgoing edge weights), contribution onto target)
@@ -167,7 +200,13 @@ def add_influence_contribution(D, reverse=False, weight="weight", **node_prop_ke
 
 # TODO: Could this (and perhaps other traversals) be re-implemented as class methods? It seems like
 # the execution of this method in particular is dependent on the type of graph passed in.
-def shortest_paths(D, sources, targets, weight=None, undirected=False):
+def shortest_paths(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    weight: Weight = None,
+    undirected: bool = False,
+) -> Iterator[NodePath]:
     """
     Single example of a shortest path for each source vs target combination.
     :param D:
@@ -190,7 +229,13 @@ def shortest_paths(D, sources, targets, weight=None, undirected=False):
                 pass
 
 
-def all_node_minsum_paths(D, sources, targets, node_weight, n_edges=None):
+def all_node_minsum_paths(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    node_weight: str,
+    n_edges: int | None = None,
+) -> list[NodePath]:
     """
     Get all paths that have the smallest sum of a given node property along the path.
     :param D: directed graph
@@ -210,7 +255,13 @@ def all_node_minsum_paths(D, sources, targets, node_weight, n_edges=None):
     return paths
 
 
-def all_node_maxsum_paths(D, sources, targets, node_weight, n_edges=None):
+def all_node_maxsum_paths(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    node_weight: str,
+    n_edges: int | None = None,
+) -> list[NodePath]:
     """
     Get all shortest paths weighted by a given node property along the path where a higher value in the property is a better connection.
     If the property is 0 then the node will not be traversed.
@@ -243,14 +294,14 @@ def all_node_maxsum_paths(D, sources, targets, node_weight, n_edges=None):
 
 
 def get_shortest_paths_plus_n(
-    D,
+    D: GraphLike,
     sources: str,
     targets: str,
-    n=0,
-    max_path_length=10,
-    undirected=False,
-    weight=None,
-) -> list:
+    n: int = 0,
+    max_path_length: int = 10,
+    undirected: bool = False,
+    weight: Weight = None,
+) -> list[NodePath]:
     """Calculates all paths from sources to targets that are the length of the shortest path plus any number n. A maximum threshold can be given, default 10.
 
     Args:
@@ -291,8 +342,13 @@ def get_shortest_paths_plus_n(
 
 
 def get_all_shortest_paths(
-    D, sources, targets, n_edges=None, weight=None, undirected=False
-):
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    n_edges: int | None = None,
+    weight: Weight = None,
+    undirected: bool = False,
+) -> list[NodePath]:
     """
     Convenient access-point for both the shortest path search and k shortest path search.
     :param D:
@@ -328,7 +384,12 @@ def get_all_shortest_paths(
         return list(_short_paths(D, sources, targets, n_edges, weight=weight))
 
 
-def all_shortest_paths(D, sources, targets, weight=None):
+def all_shortest_paths(
+    D: GraphLike,
+    sources: Iterable[NodeId],
+    targets: Iterable[NodeId],
+    weight: Weight = None,
+) -> list[NodePath]:
     """
 
     :param D:
@@ -345,7 +406,13 @@ def all_shortest_paths(D, sources, targets, weight=None):
     ]
 
 
-def _short_paths(D, sources, targets, n_edges, weight=None):
+def _short_paths(
+    D: GraphLike,
+    sources: Iterable[NodeId],
+    targets: Iterable[NodeId],
+    n_edges: int,
+    weight: Weight = None,
+) -> Iterator[NodePath]:
     """
     Collect shortest paths until there are at least "n_edges" unique edges among all paths.
     This function returns proportional numbers of paths from each source vs target.
@@ -376,7 +443,12 @@ def _short_paths(D, sources, targets, n_edges, weight=None):
             break
 
 
-def _all_shortest_paths(D, source, target, weight=None):
+def _all_shortest_paths(
+    D: GraphLike,
+    source: NodeId,
+    target: NodeId,
+    weight: Weight = None,
+) -> Iterator[NodePath]:
     """
 
     :param D:
@@ -393,7 +465,13 @@ def _all_shortest_paths(D, source, target, weight=None):
         return []
 
 
-def _all_k_shortest_paths(D, source, target, k, weight=None):
+def _all_k_shortest_paths(
+    D: GraphLike,
+    source: NodeId,
+    target: NodeId,
+    k: int,
+    weight: Weight = None,
+) -> Iterator[NodePath]:
     """
     Get all k shortest paths, which means that paths will be returned from shortest to longest
     stopping when all paths are returned with the same length as the k-th shortest path.
@@ -421,7 +499,12 @@ def _all_k_shortest_paths(D, source, target, k, weight=None):
         return []
 
 
-def all_shortest_path(D, sources, targets, weight=None):
+def all_shortest_path(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    weight: Weight = None,
+) -> list[NodePath]:
     """
     All paths between min. one node from "sources" and min. one from "targets" that are as short as the shortest path between any node from "sources" and any node from "targets"
     :param D:
@@ -435,23 +518,37 @@ def all_shortest_path(D, sources, targets, weight=None):
     return [p for p in paths if len(p) == dist]
 
 
-def _all_2step_paths(D, u, v):
+def _all_2step_paths(D: GraphLike, u: NodeId, v: NodeId) -> Iterator[NodePath]:
     for n in D.successors(u):
         if D.has_successor(n, v):
             yield [u, n, v]
 
 
-def _all_shortest_max2_paths(D, u, v):
+def _all_shortest_max2_paths(
+    D: GraphLike,
+    u: NodeId,
+    v: NodeId,
+) -> list[NodePath] | Iterator[NodePath]:
     if D.has_successor(u, v):
         return [[u, v]]
     return _all_2step_paths(D, u, v)
 
 
-def all_simple_paths(D, sources, targets, cutoff=100):
+def all_simple_paths(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    cutoff: int = 100,
+) -> list[NodePath]:
     return list(_all_simple_paths(D, sources, targets, cutoff=cutoff))
 
 
-def _all_simple_paths(D, sources, targets, cutoff=100):
+def _all_simple_paths(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    cutoff: int = 100,
+) -> Iterator[NodePath]:
     if type(sources) in [str, int]:
         sources = {sources}
     if type(targets) in [str, int]:
@@ -465,7 +562,12 @@ def _all_simple_paths(D, sources, targets, cutoff=100):
     )
 
 
-def all_simple_paths_noInter(D, sources, targets, cutoff=100):
+def all_simple_paths_noInter(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    cutoff: int = 100,
+) -> list[NodePath]:
     """
     Same as all_simple_paths except we don't want paths that goes through any source or target as an intermediary node.
     :param D:
@@ -486,7 +588,13 @@ def all_simple_paths_noInter(D, sources, targets, cutoff=100):
     ]
 
 
-def all_simple_paths_through(D, sources, through, targets, cutoff=100):
+def all_simple_paths_through(
+    D: GraphLike,
+    sources: NodeCollection,
+    through: NodeCollection,
+    targets: NodeCollection,
+    cutoff: int = 100,
+) -> list[NodePath]:
     """
 
     :param D:
@@ -501,7 +609,12 @@ def all_simple_paths_through(D, sources, through, targets, cutoff=100):
     return [p1 + p2[1:] for p1 in p1s for p2 in p2s]
 
 
-def all_shortest_paths_through(D, sources, through, targets):
+def all_shortest_paths_through(
+    D: GraphLike,
+    sources: NodeCollection,
+    through: NodeCollection,
+    targets: NodeCollection,
+) -> list[NodePath]:
     """
     Shortest paths starting at each source going through each "through" ending at each target
     :param D:
@@ -515,11 +628,21 @@ def all_shortest_paths_through(D, sources, through, targets):
     return [p1 + p2[1:] for p1 in p1s for p2 in p2s]
 
 
-def all_shortest_paths_through_any(D, sources, through, targets):
+def all_shortest_paths_through_any(
+    D: GraphLike,
+    sources: NodeCollection,
+    through: NodeCollection,
+    targets: NodeCollection,
+) -> list[NodePath]:
     return list(_all_shortest_paths_through_any(D, sources, through, targets))
 
 
-def _all_shortest_paths_through_any(D, sources, through, targets):
+def _all_shortest_paths_through_any(
+    D: GraphLike,
+    sources: NodeCollection,
+    through: NodeCollection,
+    targets: NodeCollection,
+) -> Iterator[NodePath]:
     """
     All shortest path starting at each source, ending at each target going through any of the "through"
     :param D:
@@ -548,7 +671,10 @@ def _all_shortest_paths_through_any(D, sources, through, targets):
                         yield p1 + p2[1:]
 
 
-def all_shortest_paths_along(D, *alongs):
+def all_shortest_paths_along(
+    D: GraphLike,
+    *alongs: Sequence[NodeId],
+) -> list[NodePath]:
     """
     Connect the dots. Given list of nodes that may not be directly connected, get the shortest paths that connects the disconnected steps.
     :param D: graph
@@ -564,7 +690,10 @@ def all_shortest_paths_along(D, *alongs):
     ]
 
 
-def all_2step_paths_along(D, *alongs):
+def all_2step_paths_along(
+    D: GraphLike,
+    *alongs: Sequence[NodeId],
+) -> list[NodePath]:
     """
     Fill in the blanks (nodes) between each node in each list given in alongs.
     Paths are only found if there is a connection between each pair of nodes through exactly 1 other node.
@@ -581,7 +710,10 @@ def all_2step_paths_along(D, *alongs):
     ]
 
 
-def all_shortest_max2_paths_along(D, *alongs):
+def all_shortest_max2_paths_along(
+    D: GraphLike,
+    *alongs: Sequence[NodeId],
+) -> list[NodePath]:
     """
     Fill in the blanks (nodes) between each node in each list given in alongs.
     If there is a direct link from a node to the next in a path then that is kept, rather than a 2 step path.
@@ -598,29 +730,50 @@ def all_shortest_max2_paths_along(D, *alongs):
     ]
 
 
-def path_subgraph(D, paths):
+def path_subgraph(D: GraphLike, paths: Iterable[Sequence[NodeId]]) -> GraphLike:
     return D.edge_subgraph(e for p in paths for e in zip(p[:-1], p[1:]))
 
 
-def simple_paths_subgraph(D, sources, targets, cutoff=100):
+def simple_paths_subgraph(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    cutoff: int = 100,
+) -> GraphLike:
     return path_subgraph(D, _all_simple_paths(D, sources, targets, cutoff=cutoff))
 
 
-def shortest_paths_subgraph(D, sources, targets, weight=None, undirected=False):
+def shortest_paths_subgraph(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    weight: Weight = None,
+    undirected: bool = False,
+) -> GraphLike:
     return path_subgraph(
         D, shortest_paths(D, sources, targets, weight=weight, undirected=undirected)
     )
 
 
-def all_shortest_paths_subgraph(D, sources, targets, weight=None):
+def all_shortest_paths_subgraph(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    weight: Weight = None,
+) -> GraphLike:
     return path_subgraph(D, get_all_shortest_paths(D, sources, targets, weight=weight))
 
 
-def all_shortest_path_subgraph(D, sources, targets, weight=None):
+def all_shortest_path_subgraph(
+    D: GraphLike,
+    sources: NodeCollection,
+    targets: NodeCollection,
+    weight: Weight = None,
+) -> GraphLike:
     return path_subgraph(D, all_shortest_path(D, sources, targets, weight=weight))
 
 
-def get_shortest(paths):
+def get_shortest(paths: Sequence[Sequence[NodeId]]) -> Sequence[NodeId]:
     """
     Get shortest path among a list of paths.
     :param paths: list of paths.
@@ -629,7 +782,7 @@ def get_shortest(paths):
     return paths[np.argmin([len(p) for p in paths])]
 
 
-def get_all_shortest(paths):
+def get_all_shortest(paths: Sequence[Sequence[NodeId]]) -> list[Sequence[NodeId]]:
     """
     Get all shortest path among a list of paths.
     :param paths: list of paths.
@@ -639,7 +792,9 @@ def get_all_shortest(paths):
     return [p for p in paths if len(p) == l]
 
 
-def get_all_shortest_endpoints(paths):
+def get_all_shortest_endpoints(
+    paths: Sequence[Sequence[NodeId]],
+) -> list[Sequence[NodeId]]:
     """
     Get all shortest paths among a list of paths from each unique starting node and end node.
     :param paths: list of paths.
@@ -658,7 +813,10 @@ def get_all_shortest_endpoints(paths):
     return [p for s in shortests for t in shortests[s] for p in shortests[s][t]]
 
 
-def get_all_shortest_paths_node_weight(paths, weights):
+def get_all_shortest_paths_node_weight(
+    paths: Sequence[Sequence[NodeId]],
+    weights: dict[NodeId, float],
+) -> list[Sequence[NodeId]]:
     """
     Get all shortest paths among a list of paths from each unique starting node and end node.
     This version has path length equal to sum of the values taken from "weights".
@@ -684,7 +842,10 @@ def get_all_shortest_paths_node_weight(paths, weights):
     return [paths[i] for s in shortests for t in shortests[s] for i in shortests[s][t]]
 
 
-def all_shortest_path_length(G, sources):
+def all_shortest_path_length(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+) -> dict[NodeId, dict[NodeId, int]]:
     """
     Shortest path length from all sources in "sources" toward all nodes in G.
     :param G: graph
@@ -698,7 +859,11 @@ def all_shortest_path_length(G, sources):
     return out
 
 
-def average_shortest_path_length(G, sources, targets):
+def average_shortest_path_length(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+    targets: Iterable[NodeId],
+) -> dict[NodeId, float]:
     """
     Get the average shortest for each source to the given targets when a source has any paths to targets.
     :param G:
@@ -725,7 +890,10 @@ def average_shortest_path_length(G, sources, targets):
         return {s: vs.mean() for s, vs in dists.items() if len(vs) > 0}
 
 
-def shortest_path_length(G, sources):
+def shortest_path_length(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+) -> dict[NodeId, float]:
     """
     Shortest path length from any source in "sources" toward all nodes in G.
     Should be NaN if no path is found.
@@ -737,7 +905,11 @@ def shortest_path_length(G, sources):
     return dict(pd.DataFrame([nx.shortest_path_length(G, s) for s in sources]).min())
 
 
-def shortest_path_lengths_through(G, sources, through):
+def shortest_path_lengths_through(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+    through: Iterable[NodeId],
+) -> pd.DataFrame:
     """
     Shortest path lengths from any source in "sources" through all node in "through" toward all nodes in G.
     Should be NaN if no path is found.
@@ -757,7 +929,11 @@ def shortest_path_lengths_through(G, sources, through):
     return pd.DataFrame(source2through2all, columns=fromThrough.columns, index=through)
 
 
-def shortest_path_length_through(G, sources, through):
+def shortest_path_length_through(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+    through: Iterable[NodeId],
+) -> dict[NodeId, float]:
     """
     Shortest path length from any source in "sources" through any node in "through" toward all nodes in G.
     Should be NaN if no path is found.
@@ -771,7 +947,11 @@ def shortest_path_length_through(G, sources, through):
     )
 
 
-def all_shortest_path_lengths_through(G, sources, through):
+def all_shortest_path_lengths_through(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+    through: Iterable[NodeId],
+) -> pd.DataFrame:
     """
     Get the shortest path length from each source through each "through" to each target node in G
     :param G:
@@ -794,7 +974,12 @@ def all_shortest_path_lengths_through(G, sources, through):
     return fromThrough + fromSource
 
 
-def shortest_through(G, sources, through, targets):
+def shortest_through(
+    G: GraphLike,
+    sources: Iterable[NodeId],
+    through: Iterable[NodeId],
+    targets: Iterable[NodeId],
+) -> dict[NodeId, dict[NodeId, set[NodeId]]]:
     """
     Get the intermediaries from "through" for each source vs target pair that is part of the shortest path from source to target going through one of the "through" nodes.
     :param G:
@@ -813,7 +998,10 @@ def shortest_through(G, sources, through, targets):
     }
 
 
-def descendant_of(D, roots):
+def descendant_of(
+    D: GraphLike,
+    roots: Iterable[NodeId],
+) -> dict[NodeId, set[NodeId]]:
     """
     Find out which of the roots a node is a descendant of.
     :param D:
@@ -828,7 +1016,7 @@ def descendant_of(D, roots):
     return descOf
 
 
-def descendant_of_any(D, roots):
+def descendant_of_any(D: GraphLike, roots: set[NodeId]) -> set[NodeId]:
     """
     Get set of nodes that are descendant of at least on of the given roots.
     :param D: DirectedGraph or networkx graph
@@ -838,7 +1026,11 @@ def descendant_of_any(D, roots):
     return set.union(*(nx.descendants(D, r) for r in roots & D.nodes))
 
 
-def descendant_of_through(D, roots, through):
+def descendant_of_through(
+    D: GraphLike,
+    roots: Iterable[NodeId],
+    through: Iterable[NodeId],
+) -> dict[NodeId, set[NodeId]]:
     """
     Find out which of the roots a node is a descendant of through a directed path that has to go through a node given in "through".
     :param D:
@@ -855,7 +1047,7 @@ def descendant_of_through(D, roots, through):
     }
 
 
-def reachable(D, roots):
+def reachable(D: GraphLike, roots: Iterable[NodeId]) -> dict[NodeId, set[NodeId]]:
     descOf = descendant_of(D, roots)
     # add start nodes as "descendants" to themselves, so not strictly descendants anymore.
     for r in roots:
@@ -864,7 +1056,11 @@ def reachable(D, roots):
     return descOf
 
 
-def reachable_through(D, roots, through):
+def reachable_through(
+    D: GraphLike,
+    roots: Iterable[NodeId],
+    through: Iterable[NodeId],
+) -> dict[NodeId, set[NodeId]]:
     """
     Currently always including root even if there is no path from any root to any through to the given root.
     :param D:
@@ -885,7 +1081,7 @@ def reachable_through(D, roots, through):
     return reach
 
 
-def any_reachable(D, roots):
+def any_reachable(D: GraphLike, roots: NodeCollection) -> set[NodeId]:
     """
     Get nodes that are reachable from at least one of the roots.
     :param D: DirectedGraph
@@ -896,7 +1092,7 @@ def any_reachable(D, roots):
     return descendant_of_any(D, roots) | (roots & D.nodes)
 
 
-def remove_inf(D, weight=None):
+def remove_inf(D: GraphLike, weight: str | None = None) -> GraphLike:
     """
     For weighted traversal we consider a weight the length of an edge. If an edge is inf long this function can be useful to remove those.
     They are removed in a copy that is returned, the given graph is not modified.

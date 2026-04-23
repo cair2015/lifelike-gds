@@ -7,11 +7,13 @@ performs network analysis operations. All network analysis is database-agnostic
 and uses NetworkX for algorithms.
 """
 
-import logging
-import os.path
-import inspect
-from typing import Any, List, Optional, Set, Union
+from __future__ import annotations
+
 from pathlib import Path
+import logging
+import inspect
+import os.path
+from typing import Any
 
 import networkx as nx
 import pandas as pd
@@ -23,6 +25,8 @@ from lifelike_gds.network.trace_utils import add_trace_network, get_traced_nodes
 from lifelike_gds.network.trace_graph_utils import write_sankey_file, write_cytoscape_file
 from lifelike_gds.network.collection_utils import dict_max_ties, dict_min_ties
 logger = logging.getLogger(__name__)
+
+NodeId = Any
 
 
 class TraceGraphNx:
@@ -36,7 +40,12 @@ class TraceGraphNx:
     and relies on a GraphSource interface for database operations.
     """
 
-    def __init__(self, graphsource:GraphSource, directed: bool = True, multigraph: bool = True):
+    def __init__(
+        self,
+        graphsource: GraphSource,
+        directed: bool = True,
+        multigraph: bool = True,
+    ) -> None:
         """
         Initialize TraceGraphNx with a database source.
         
@@ -47,7 +56,7 @@ class TraceGraphNx:
         """
         self.graphsource = graphsource
         self.directed = directed
-        self.paths = []
+        self.paths: list[list[NodeId]] = []
         self.datadir = "."
         
         if multigraph:
@@ -58,9 +67,7 @@ class TraceGraphNx:
         # Save original graph for multiple analyses
         self.orig_graph = self.graph
 
-    def init_default_graph(
-        self,**kwargs
-    ) -> None:
+    def init_default_graph(self, **kwargs: Any) -> None:
         """Initialize graph with default nodes and relationships from database."""
         self.graphsource.initiate_trace_graph(self, **kwargs)
 
@@ -75,7 +82,7 @@ class TraceGraphNx:
         if not os.path.exists(datadir):
             os.makedirs(datadir, exist_ok=True)
 
-    def add_nodes(self, node_query: str, **parameters) -> None:
+    def add_nodes(self, node_query: str, **parameters: Any) -> None:
         """
         Add nodes to graph from database query result.
         
@@ -92,7 +99,7 @@ class TraceGraphNx:
             self.graph.add_nodes_from(nodes)
             logger.info(f"Added {len(nodes)} nodes to graph")
 
-    def add_rels(self, rel_query: str, **parameters) -> None:
+    def add_rels(self, rel_query: str, **parameters: Any) -> None:
         """
         Add relationships to graph from database query result.
         
@@ -112,7 +119,7 @@ class TraceGraphNx:
         
         logger.info(f"Added {len(rel_data)} relationships to graph")
 
-    def add_nodes_rels_from_paths(self, paths: List) -> None:
+    def add_nodes_rels_from_paths(self, paths: list[Any]) -> None:
         """
         Add nodes and relationships from database path results.
         
@@ -128,7 +135,7 @@ class TraceGraphNx:
                     label=r.type,
                 )
 
-    def set_node_set(self, key: str, nodes: Set[int], **meta) -> None:
+    def set_node_set(self, key: str, nodes: set[NodeId], **meta: Any) -> None:
         """
         Set a named node set in the graph.
         
@@ -139,7 +146,12 @@ class TraceGraphNx:
         """
         self.graph.set_node_set(key, nodes, **meta)
 
-    def set_node_set_from_db_nodes(self, nodes: List, name: str, desc: str) -> None:
+    def set_node_set_from_db_nodes(
+        self,
+        nodes: list[Any],
+        name: str,
+        desc: str,
+    ) -> None:
         """
         Create node set from database node records.
         
@@ -155,11 +167,16 @@ class TraceGraphNx:
         self.graph.set_node_set(name, node_set, name=name, description=desc)
         logger.info(f"Created node set '{name}' with {len(node_set)} nodes")
 
-    def set_node_set_from_arango_nodes(self, nodes: List, name: str, desc: str) -> None:
+    def set_node_set_from_arango_nodes(
+        self,
+        nodes: list[Any],
+        name: str,
+        desc: str,
+    ) -> None:
         """Backward-compatible alias kept for older notebooks and examples."""
         self.set_node_set_from_db_nodes(nodes, name, desc)
 
-    def set_node_set_for_node(self, node) -> str:
+    def set_node_set_for_node(self, node: dict[str, Any]) -> str:
         """
         Create node set for a single node.
         
@@ -185,7 +202,7 @@ class TraceGraphNx:
         """
         self.graph.describe(desc)
 
-    def set_nodes_flag(self, node_set_name: str, flag_val) -> None:
+    def set_nodes_flag(self, node_set_name: str, flag_val: Any) -> None:
         """
         Set flag value for all nodes in a node set.
         
@@ -197,7 +214,7 @@ class TraceGraphNx:
         node_vals = {n: flag_val for n in nodes}
         nx.set_node_attributes(self.graph, node_vals, "flag")
 
-    def get_node_label(self, node_id: int) -> str:
+    def get_node_label(self, node_id: NodeId) -> str:
         """
         Get label for a node.
         
@@ -209,7 +226,7 @@ class TraceGraphNx:
         """
         return self.graph.nodes[node_id].get(self.graphsource.node_label_prop, str(node_id))
 
-    def load_node_detail_from_db(self, nodes: List[Any]) -> None:
+    def load_node_detail_from_db(self, nodes: list[NodeId]) -> None:
         """
         Load detailed node properties from database.
         
@@ -249,7 +266,7 @@ class TraceGraphNx:
         self.graphsource.load_node_details(node_ids, self.graph)
         self.graphsource.load_edge_details(self.graph)
 
-    def get_nodes_detail_as_dataframe(self, node_ids: List[Any]) -> pd.DataFrame:
+    def get_nodes_detail_as_dataframe(self, node_ids: list[NodeId]) -> pd.DataFrame:
         """
         Get node properties as DataFrame.
         
@@ -265,9 +282,9 @@ class TraceGraphNx:
         self,
         weighted_prop_name: str,
         num_nodes: int,
-        include_nodes: Optional[List[int]] = None,
-        exclude_nodes: Optional[List[int]] = None,
-    ) -> List[int]:
+        include_nodes: list[NodeId] | None = None,
+        exclude_nodes: list[NodeId] | None = None,
+    ) -> list[NodeId]:
         """
         Get top weighted nodes based on a node property.
         
@@ -296,9 +313,9 @@ class TraceGraphNx:
         self,
         weighted_prop_name: str,
         num_nodes: int,
-        include_nodes: Optional[List[int]] = None,
-        exclude_nodes: Optional[List[int]] = None,
-    ) -> List[int]:
+        include_nodes: list[NodeId] | None = None,
+        exclude_nodes: list[NodeId] | None = None,
+    ) -> list[NodeId]:
         """
         Get bottom weighted nodes based on a node property.
         
@@ -327,8 +344,8 @@ class TraceGraphNx:
         self,
         selected_nodes_key: str,
         weight_property: str,
-        sources: Optional[str] = None,
-        targets: Optional[str] = None,
+        sources: str | None = None,
+        targets: str | None = None,
         trace_name: str = "",
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -385,11 +402,11 @@ class TraceGraphNx:
 
     def add_selected_nodes_trace_networks(
         self,
-        selected_nodes: List,
+        selected_nodes: list[dict[str, Any]],
         weight_property: str,
         trace_name_prefix: str,
-        sources: Optional[str] = None,
-        targets: Optional[str] = None,
+        sources: str | None = None,
+        targets: str | None = None,
         include_allshortest_path: bool = True,
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -459,7 +476,7 @@ class TraceGraphNx:
                         shortest_paths_plus_n=shortest_paths_plus_n,
                     )
 
-    def write_to_sankey_file(self, filename: Union[str, Path]) -> None:
+    def write_to_sankey_file(self, filename: str | Path) -> None:
         """
         Export graph to Sankey format JSON file.
         
@@ -469,7 +486,7 @@ class TraceGraphNx:
         write_sankey_file(str(filename), self.graph)
         logger.info(f"Graph exported to {filename}")
 
-    def write_to_cytoscape_file(self, filename: Union[str, Path]) -> None:
+    def write_to_cytoscape_file(self, filename: str | Path) -> None:
         """
         Export graph to Cytoscape-compatible JSON format.
         

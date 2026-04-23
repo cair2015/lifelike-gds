@@ -5,9 +5,11 @@ This module provides PageRank-based radiate analysis to identify influential nod
 and pathways from source nodes through the network. Works with any database backend.
 """
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import List, Dict, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -31,7 +33,7 @@ class RadiateTrace(TraceGraphNx):
     and paths from source nodes through the network. Database-agnostic.
     """
 
-    def __init__(self, graphsource, multigraph: bool = True):
+    def __init__(self, graphsource: Any, multigraph: bool = True) -> None:
         """
         Initialize RadiateTrace.
         
@@ -85,9 +87,9 @@ class RadiateTrace(TraceGraphNx):
         self,
         sources: str,
         direction: str = "both",
-        personalization: Optional[Dict[int, float]] = None,
+        personalization: dict[int, float] | None = None,
         contribution: bool = False,
-    ) -> Tuple[bool, bool]:
+    ) -> tuple[bool, bool]:
         """
         Set personalized PageRank and reachability counts from sources.
         
@@ -143,7 +145,7 @@ class RadiateTrace(TraceGraphNx):
         sources: str,
         pagerank_prop: str,
         reverse: bool = False,
-        personalization: Optional[Dict[int, float]] = None,
+        personalization: dict[int, float] | None = None,
         contribution: bool = True,
     ) -> None:
         """
@@ -169,7 +171,7 @@ class RadiateTrace(TraceGraphNx):
         self,
         sources: str,
         filename: str,
-        sources_personalization: Optional[Dict[int, float]] = None,
+        sources_personalization: dict[int, float] | None = None,
         direction: str = "both",
         num_nodes: int = 3000,
         exclude_sources: bool = True,
@@ -269,10 +271,10 @@ class RadiateTrace(TraceGraphNx):
 
     def add_traces_from_sources_to_each_selected_nodes(
         self,
-        selected_nodes: List,
+        selected_nodes: list[dict[str, Any]],
         sources: str,
-        weighted_prop: Optional[str] = None,
-        selected_nodes_name: Optional[str] = None,
+        weighted_prop: str | None = None,
+        selected_nodes_name: str | None = None,
         include_shortest_paths: bool = True,
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -316,7 +318,7 @@ class RadiateTrace(TraceGraphNx):
         self,
         selected_nodeset: str,
         sources: str,
-        weighted_prop: Optional[str] = None,
+        weighted_prop: str | None = None,
         trace_name: str = 'Forward combined',
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -346,10 +348,10 @@ class RadiateTrace(TraceGraphNx):
 
     def add_traces_from_each_selected_nodes_to_targets(
         self,
-        selected_nodes: List,
+        selected_nodes: list[dict[str, Any]],
         targets: str,
-        weighted_prop: Optional[str] = None,
-        selected_nodes_name: Optional[str] = None,
+        weighted_prop: str | None = None,
+        selected_nodes_name: str | None = None,
         include_allshortest_path: bool = True,
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -393,7 +395,7 @@ class RadiateTrace(TraceGraphNx):
         self,
         selected_nodeset: str,
         targets: str,
-        weighted_prop: Optional[str] = None,
+        weighted_prop: str | None = None,
         trace_name: str = 'Reverse combined',
         shortest_paths_plus_n: int = 0,
     ) -> None:
@@ -442,8 +444,8 @@ class RadiateTrace(TraceGraphNx):
         excel_filename: str,
         source_set: str,
         target_set: str,
-        source_personalization: Optional[Dict[int, float]] = None,
-        target_personalization: Optional[Dict[int, float]] = None,
+        source_personalization: dict[int, float] | None = None,
+        target_personalization: dict[int, float] | None = None,
         num_nodes: int = 3000,
         exclude_sources: bool = True,
     ) -> None:

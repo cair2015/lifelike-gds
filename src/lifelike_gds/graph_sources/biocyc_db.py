@@ -4,18 +4,20 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from lifelike_gds.graph_sources.biocyc import (
-    Biocyc,
-    CURRENCY_METABOLITE_LABEL,
-    DEFAULT_EXCLUDED_NODE_LABELS as BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS,
-    EDGE_DESC_DICT,
+from lifelike_gds.graph_sources.biocyc import Biocyc
+from lifelike_gds.graph_sources.domain_config import (
+    BIOCYC_CURRENCY_METABOLITE_LABEL,
+    BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS,
+    BIOCYC_EDGE_DESC_DICT,
 )
-from lifelike_gds.graph_sources.database import Database
+from lifelike_gds.graph_sources.database import Neo4jDatabase
 
-DEFAULT_EXCLUDED_NODE_LABELS = BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS
+CURRENCY_METABOLITE_LABEL = BIOCYC_CURRENCY_METABOLITE_LABEL
+DEFAULT_EXCLUDED_NODE_LABELS = list(BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS)
+EDGE_DESC_DICT = dict(BIOCYC_EDGE_DESC_DICT)
 
 
-class BiocycDB(Database):
+class BiocycDB(Neo4jDatabase):
     """Neo4j query adapter for the BioCyc graph."""
 
     DEFAULT_EXCLUDED_NODE_LABELS = tuple(BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS)

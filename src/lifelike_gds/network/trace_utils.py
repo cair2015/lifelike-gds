@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 import networkx as nx
 
 
@@ -17,46 +21,32 @@ from lifelike_gds.network.graph_utils import (
     from_multi_edges,
 )
 
+TraceGraphLike = DirectedGraph | MultiDirectedGraph
+
 
 def add_trace_network(
-    D,
-    sources,
-    targets,
-    sources_key=None,
-    targets_key=None,
-    reverse=False,
-    weight=None,
-    minsum=None,
-    maxsum=None,
-    n_edges=None,
-    undirected=False,
-    default_sizing=None,
-    name=None,
-    description=None,
-    query=None,
-    shortest_paths_plus_n=0,
-):
+    D: TraceGraphLike | nx.DiGraph | nx.MultiDiGraph,
+    sources: str | set[Any],
+    targets: str | set[Any],
+    sources_key: str | None = None,
+    targets_key: str | None = None,
+    reverse: bool = False,
+    weight: str | None = None,
+    minsum: str | None = None,
+    maxsum: str | None = None,
+    n_edges: int | None = None,
+    undirected: bool = False,
+    default_sizing: str | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    query: str | None = None,
+    shortest_paths_plus_n: int = 0,
+) -> tuple[int | None, int]:
     """
-    Add an entry to a list D.graph["trace_networks"].
-    :param D: (Multi)DirectedGraph, networkx graph will be converted.
-    :param sources: key in D.graph["node_sets"].
-    If set of nodes is given without name_sources they will be looked for in D.graph["node_sets"]. If not found they will be given a new arbitrary name.
-    :param targets: same as sources, except for targets.
-    :param sources_key: optional string key to give to sources if "sources" is a set of node ids.
-    :param targets_key: optional string key to give to targets if "targets" is a set of node ids.
-    :param reverse: if True simply reverses source and target sets for convenience.
-    :param weight: get all shortest paths with min(sum(edge weight))
-    :param minsum: get all shortest paths with min(sum(node weight))
-    :param maxsum: get all shortest paths with min(sum(1/node weight))
-    :param n_edges: set a lower bound on number of unique edges in the trace network
-    :param undirected: bool. Undirected shortest paths.
-    :param default_sizing: name of default sizing definition for this trace network.
-    Defaults to looking for a sizing definition with the same name as a given "weight", "minsum" or "maxsum".
-    If any of those are given and a sizing definition is not found then one will be made possibly copying name and description from a node property matching key.
-    :param name: optional str text name
-    :param description: optional str text description. If not given, one will be generated.
-    :param query: optional str to indicate the query set key. Default: take set key from the bigger set among sources and targets.
-    :return: trace_network index if traces were found else None
+    Create a trace-network entry on a graph and return its index and path count.
+
+    ``sources`` and ``targets`` may be existing node-set keys or raw node-id
+    sets. Raw sets are registered on the graph automatically before tracing.
     """
     if type(D) == nx.DiGraph:
         D = DirectedGraph(D)
@@ -187,15 +177,16 @@ def add_trace_network(
         return None, len(node_paths)
 
 
-def get_traced_edges(D):
+def get_traced_edges(D: TraceGraphLike) -> set[tuple[Any, ...]]:
+    """Return all edges referenced by the graph's trace networks."""
     return set(_get_traced_edges(D))
 
 
-def _get_traced_edges(D):
+def _get_traced_edges(D: TraceGraphLike):
     """
-    Get all edges mentioned in traces.
-    :param D:
-    :return:
+    Yield all edges referenced by the graph's trace networks.
+
+    Includes ``detail_edges`` entries when they are present.
     """
     for tn in D.graph["trace_networks"]:
         for t in tn["traces"]:
@@ -206,15 +197,14 @@ def _get_traced_edges(D):
                     yield e[:2]
 
 
-def get_traced_nodes(D):
+def get_traced_nodes(D: TraceGraphLike) -> set[Any]:
+    """Return all node ids referenced by traces or traced edges."""
     return set(_get_traced_nodes(D))
 
 
-def _get_traced_nodes(D):
+def _get_traced_nodes(D: TraceGraphLike):
     """
-    Get all nodes that are in any trace of D.
-    :param D:
-    :return: iterator for set of node ids
+    Yield all node ids that appear anywhere in the graph's trace payloads.
     """
     if "trace_networks" not in D.graph:
         return set()
@@ -229,11 +219,12 @@ def _get_traced_nodes(D):
         yield e[1]
 
 
-def get_trace_detail_graphs(D):
+def get_trace_detail_graphs(D: TraceGraphLike) -> dict[tuple[Any, Any], TraceGraphLike]:
     """
-    Get a separate graph for each of the "detail_edges" entries in each trace.
-    :param D:
-    :return: dict mapping from (source, target) to graph
+    Build one detail graph per trace that contains ``detail_edges``.
+
+    Returns:
+        Mapping from ``(source, target)`` pairs to newly created graphs.
     """
     Ds = {}
     for tn in D.graph["trace_networks"]:
@@ -257,11 +248,12 @@ def get_trace_detail_graphs(D):
     return Ds
 
 
-def link_index(data):
+def link_index(data: dict[str, Any]) -> None:
     """
-    Use indexing in "link" list instead of (u, v) or (u, v, k)
-    :param data: node_link_data dict representation of graph
-    :return:
+    Replace edge tuples in trace payloads with link-array indexes in place.
+
+    Args:
+        data: ``nx.node_link_data``-style payload.
     """
     link_key = "links" if "links" in data else "edges"
     if data["multigraph"]:

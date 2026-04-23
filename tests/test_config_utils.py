@@ -13,7 +13,7 @@ def reset_env_loader():
 def test_read_config_reads_explicit_environment_values(monkeypatch):
     reset_env_loader()
     monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
-    monkeypatch.setenv("NEO4J_USER", "neo4j")
+    monkeypatch.setenv("NEO4J_USERNAME", "neo4j")
     monkeypatch.setenv("NEO4J_PASSWORD", "secret")
     monkeypatch.setenv("NEO4J_DATABASE", "demo")
     monkeypatch.setenv("NEO4J_ENCRYPTED", "yes")
@@ -33,7 +33,7 @@ def test_read_config_uses_default_neo4j_database_and_validates_required_keys(mon
     reset_env_loader()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
-    monkeypatch.setenv("NEO4J_USER", "neo4j")
+    monkeypatch.setenv("NEO4J_USERNAME", "neo4j")
     monkeypatch.setenv("NEO4J_PASSWORD", "secret")
     monkeypatch.delenv("NEO4J_DATABASE", raising=False)
     monkeypatch.delenv("NEO4J_ENCRYPTED", raising=False)
@@ -56,7 +56,7 @@ def test_read_config_loads_values_from_nearby_dotenv(monkeypatch, tmp_path):
     env_file = project / ".env"
     env_file.write_text(
         "NEO4J_URI=bolt://example:7687\n"
-        "NEO4J_USER=alice\n"
+        "NEO4J_USERNAME=alice\n"
         "NEO4J_PASSWORD=fromfile\n"
         "NEO4J_ENCRYPTED=1\n",
         encoding="utf-8",
@@ -64,7 +64,7 @@ def test_read_config_loads_values_from_nearby_dotenv(monkeypatch, tmp_path):
 
     monkeypatch.chdir(nested)
     monkeypatch.delenv("NEO4J_URI", raising=False)
-    monkeypatch.delenv("NEO4J_USER", raising=False)
+    monkeypatch.delenv("NEO4J_USERNAME", raising=False)
     monkeypatch.delenv("NEO4J_PASSWORD", raising=False)
     monkeypatch.delenv("NEO4J_DATABASE", raising=False)
     monkeypatch.delenv("NEO4J_ENCRYPTED", raising=False)

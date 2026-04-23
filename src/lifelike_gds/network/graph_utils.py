@@ -4,6 +4,7 @@ import logging
 import networkx as nx
 import numpy as np
 import sys
+from typing import List, Optional, TypeAlias
 
 from lifelike_gds.network.collection_utils import (
     dict2str,
@@ -33,22 +34,36 @@ from lifelike_gds.network.graph_props import (
 
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO, force=True)
 
+DirectedGraphLike: TypeAlias = "DirectedGraph | MultiDirectedGraph"
+
 
 # GETTERS
 
 
-def get_leaves(D):
+def get_leaves(D: DirectedGraphLike) -> set:
     """
-    We choose to define leaves as nodes with out-degree == 0 but in-degree > 0
-    which means that isolates will not be a leaf, but something separate,
-    which is typically data storage for nodes hidden in collapsed edges.
-    :param D:
-    :return:
+    Return leaf nodes in a directed graph.
+
+    Leaves are defined as nodes with out-degree ``0`` and in-degree greater
+    than ``0``. Isolates are excluded because they are treated separately,
+    often as storage for nodes hidden inside collapsed edges.
+
+    :param D: Directed graph to inspect.
+    :return: Set of leaf node ids.
     """
     return {n for n, d in D.out_degree() if d == 0} - set(nx.isolates(D))
 
 
-def get_roots(D):
+def get_roots(D: DirectedGraphLike) -> set:
+    """
+    Return root nodes in a directed graph.
+
+    Roots are defined as nodes with in-degree ``0`` and out-degree greater than
+    ``0``. Isolates are excluded.
+
+    :param D: Directed graph to inspect.
+    :return: Set of root node ids.
+    """
     return {n for n, d in D.in_degree() if d == 0} - set(nx.isolates(D))
 
 
@@ -77,12 +92,14 @@ def graph_filter_inplace(G, *nodes):
                 del ns[i]
 
 
-def trim_leaves(D, exclude=None):
+def trim_leaves(D: DirectedGraphLike, exclude=None) -> DirectedGraphLike:
     """
-    Remove leaves (nodes with out-degree == 0) iteratively.
-    :param D: DirectedGraph
-    :param exclude: Don't remove these nodes given as a set of node ids or key to D.graph["node_sets"].
-    :return: modified D but also edits in-place
+    Remove leaves from a directed graph until none remain.
+
+    :param D: Directed graph to trim.
+    :param exclude: Nodes to preserve, given either as a set of node ids or as
+        a key in ``D.graph["node_sets"]``.
+    :return: The modified graph ``D``.
     """
     if exclude is None:
         leaves = get_leaves(D)
@@ -99,7 +116,14 @@ def trim_leaves(D, exclude=None):
     return D
 
 
-def trim_roots(D, exclude=None):
+def trim_roots(D: DirectedGraphLike, exclude=None) -> DirectedGraphLike:
+    """
+    Remove roots from a directed graph until none remain.
+
+    :param D: Directed graph to trim.
+    :param exclude: Nodes to preserve while trimming roots.
+    :return: The modified graph ``D``.
+    """
     if exclude is None:
         roots = get_roots(D)
         while len(roots) > 0:
@@ -114,12 +138,15 @@ def trim_roots(D, exclude=None):
     return D
 
 
-def trim_leaves_collapsed(D, exclude=None):
+def trim_leaves_collapsed(
+    D: DirectedGraphLike, exclude=None
+) -> DirectedGraphLike:
     """
-    Trim leaves but make sure to keep the data for collapsed edge nodes that will otherwise be removed if they have in-degree > 0.
-    :param D:
-    :param exclude:
-    :return: D modified in-place
+    Trim leaves while preserving metadata for nodes hidden in collapsed edges.
+
+    :param D: Directed graph to trim.
+    :param exclude: Nodes to preserve while trimming leaves.
+    :return: The modified graph ``D``.
     """
     node_props = D.getd(nodes=get_collapsed_edge_nodes(D))
     trim_leaves(D, exclude)
@@ -128,12 +155,15 @@ def trim_leaves_collapsed(D, exclude=None):
     return D
 
 
-def trim_roots_collapsed(D, exclude=None):
+def trim_roots_collapsed(
+    D: DirectedGraphLike, exclude=None
+) -> DirectedGraphLike:
     """
-    Trim roots but make sure to keep the data for collapsed edge nodes that will otherwise be removed if they have out-degree > 0.
-    :param D:
-    :param exclude:
-    :return: D modified in-place
+    Trim roots while preserving metadata for nodes hidden in collapsed edges.
+
+    :param D: Directed graph to trim.
+    :param exclude: Nodes to preserve while trimming roots.
+    :return: The modified graph ``D``.
     """
     node_props = D.getd(nodes=get_collapsed_edge_nodes(D))
     trim_roots(D, exclude)
@@ -254,7 +284,15 @@ def _meta_union(R, Gs, meta_key):
                     meta_R.update(meta)
 
 
-def get_largest_component(D, start_nodes):
+def get_largest_component(D: DirectedGraphLike, start_nodes):
+    """
+    Keep only the largest weakly connected component of a directed graph.
+
+    :param D: Directed graph whose components should be examined.
+    :param start_nodes: Starting nodes to retain if they remain in the largest
+        component.
+    :return: Tuple of ``(subgraph, filtered_start_nodes)``.
+    """
     # the graph consists of multiple disconnected components
     subDs = list(nx.weakly_connected_components(D))
     subD_lens = [len(g) for g in subDs]
@@ -272,12 +310,13 @@ def get_largest_component(D, start_nodes):
     return D, start_nodes
 
 
-def collapse_nodes(D, nodes):
+def collapse_nodes(D: DirectedGraphLike, nodes) -> "MultiDirectedGraph":
     """
-    Create new graph where nodes in "nodes" are removed and becomes a property of edges between remaining nodes that were originally connected to them.
-    :param D: graph.
-    :param nodes: set of nodes
-    :return: new MultiDirectedGraph
+    Collapse intermediate nodes into edge metadata.
+
+    :param D: Directed graph to transform.
+    :param nodes: Set of node ids to collapse.
+    :return: New ``MultiDirectedGraph`` with collapsed edges.
     """
     MD = MultiDirectedGraph(D)
     for n in nodes:
@@ -313,15 +352,17 @@ def expand_nodes(MD, expand_paths=False):
     return D
 
 
-def get_collapsed_edge_nodes(D):
+def get_collapsed_edge_nodes(D: DirectedGraphLike) -> set:
     return set(_get_collapsed_edge_nodes(D))
 
 
-def _get_collapsed_edge_nodes(D):
+def _get_collapsed_edge_nodes(D: DirectedGraphLike):
     """
-    Get all nodes mentioned in a property "nodes" from edges or collapsed edges (has "inedge" and "outedge")
-    :param D:
-    :return:
+    Yield node ids referenced inside collapsed-edge metadata.
+
+    :param D: Directed graph whose edge metadata should be scanned.
+    :return: Iterator of node ids mentioned in edge ``nodes`` metadata or in
+        nested ``inedge``/``outedge`` metadata.
     """
     for u, v, d in D.edges(data=True):
         for n in d.get("nodes", set()):
@@ -346,12 +387,12 @@ def get_path_edges(path):
     return set(zip(path[:-1], path[1:]))
 
 
-def get_path_directed_edges(D, path):
+def get_path_directed_edges(D: DirectedGraphLike, path) -> set:
     """
     Get unique edges found in a path which may walk edges against the direction.
     The edges will in that case be returned flipped as to list unique edges as they are directed in the graph.
     Assumes that either the edge or its flipped version are in the graph.
-    :param D: directed graph
+    :param D: Directed graph used to determine canonical edge direction.
     :param path: node path
     :return: set of edge tuples
     """
@@ -381,12 +422,14 @@ def get_edge_paths(paths):
     return [get_edge_path(p) for p in paths]
 
 
-def get_directed_edge_paths(D, paths):
+def get_directed_edge_paths(D: DirectedGraphLike, paths):
     """
     Convert node path to edge path where edges not found in D are flipped, assuming that they are present but were traversed against their direction.
-    :param D:
-    :param paths:
-    :return:
+
+    :param D: Directed graph used to orient edges.
+    :param paths: Iterable of node paths.
+    :return: List of edge paths whose edge tuples match the direction stored in
+        ``D``.
     """
     edge_paths = get_edge_paths(paths)
     for ep in edge_paths:
@@ -540,7 +583,7 @@ def get_nEdgePaths(edge_paths, i=0):
     return dict(zip(*np.unique(starts, return_counts=True)))
 
 
-def get_path_label_count(D, path, label):
+def get_path_label_count(D: DirectedGraphLike, path, label):
     return sum(1 for n in path if label in D.nodes[n]["labels"])
 
 
@@ -1094,8 +1137,7 @@ class DirectedGraph(nx.DiGraph):
         """
         Add or set a sizing definition.
         A sizing definition has a name, node sizing property key, link sizing property key and optionally a description.
-        :param D:
-        :param key:
+        :param key: Sizing definition key.
         :param node_sizing: default to name param
         :param link_sizing: default to name param + "_contribution"
         :param meta: e.g. name="...", description="..."

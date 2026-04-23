@@ -11,6 +11,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional, TypeAlias
 
+from lifelike_gds.graph_sources.database import NodeRecord
+from lifelike_gds.network.graph_source import GraphSource
 from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 from lifelike_gds.network.trace_utils import add_trace_network
 
@@ -28,7 +30,7 @@ class ShortestPathTrace(TraceGraphNx):
     all-shortest, and weighted variants.
     """
 
-    def __init__(self, graphsource: Any, multigraph: bool = True) -> None:
+    def __init__(self, graphsource: GraphSource, multigraph: bool = True) -> None:
         """Initialize the shortest-path tracer.
 
         Args:
@@ -245,6 +247,51 @@ class ShortestPathTrace(TraceGraphNx):
             logger.debug("Unable to read node_sets metadata from graph", exc_info=True)
 
         return node_set_key
+    
+    def write_shortest_paths(
+        self,
+        source_name: str,
+        source_nodes: list[NodeRecord],
+        target_name: str,
+        target_nodes: list[NodeRecord],
+        graph_description: str,
+    ) -> bool:
+        """
+        Build and export a shortest-path trace network between two node groups.
+
+        This helper resets the working graph to the original projection, creates
+        source and target node sets from database node records, adds a graph
+        description, computes shortest paths, and writes the resulting Sankey
+        export when at least one path is found.
+
+        Args:
+            source_name: Node-set key and display name for the source nodes.
+            source_nodes: Source database node records.
+            target_name: Node-set key and display name for the target nodes.
+            target_nodes: Target database node records.
+            graph_description: Description to append to the graph metadata.
+
+        Returns:
+            ``True`` when at least one shortest path was found and exported,
+            otherwise ``False``.
+        """
+        self.graph = self.orig_graph.copy()
+        self.set_node_set_from_db_nodes(
+            source_nodes, source_name, source_name
+        )
+        self.set_node_set_from_db_nodes(
+            target_nodes, target_name, target_name
+        )
+        self.add_graph_description(graph_description)
+        source_as_query = len(source_nodes) > len(target_nodes)
+        ok = self.add_shortest_paths(source_name, target_name, source_as_query)
+        if ok:
+            graphfile = f"Shortest_paths_from_{source_name}_to_{target_name}.graph"
+            self.write_to_sankey_file(graphfile)
+            return True
+        else:
+            logger.info("No paths found from %s to %s", source_name, target_name)
+            return False
 
 
 class InteractionPathTrace(ShortestPathTrace):

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import copy
 import gzip
 import logging
+from collections.abc import MutableMapping
 from os.path import expanduser
+from typing import Any
 
 import networkx as nx
 import numpy as np
@@ -20,18 +24,26 @@ from lifelike_gds.network.graph_algorithms import (
 from lifelike_gds.network.graph_utils import DirectedGraph, MultiDirectedGraph
 
 
-def read_json(fname):
+GraphLike = nx.Graph | nx.DiGraph | nx.MultiGraph | nx.MultiDiGraph
+
+
+def read_json(fname: str) -> Any:
+    """Read a JSON or gzipped JSON payload from disk."""
     fname = expanduser(fname)
     fh = gzip.open(fname, "rt") if fname.endswith(".gz") else open(fname)
     with fh as infile:
         return json.load(infile)
 
 
-def read_apoc_json(fname):
+def read_apoc_json(fname: str) -> nx.DiGraph:
     """
-    Read json from arango databases exported with call apoc.export.json.all("...")
-    :param fname:
-    :return:
+    Read a line-delimited APOC graph export into a directed NetworkX graph.
+
+    Args:
+        fname: Path to the APOC export file, optionally gzipped.
+
+    Returns:
+        Directed graph containing the exported nodes and relationships.
     """
     fname = expanduser(fname)
     fh = gzip.open(fname, "rt") if fname.endswith(".gz") else open(fname)
@@ -55,7 +67,8 @@ def read_apoc_json(fname):
     return D
 
 
-def read_gpickle(fname):
+def read_gpickle(fname: str) -> DirectedGraph | MultiDirectedGraph:
+    """Read a gpickle graph and wrap it in the package's graph classes."""
     if fname.endswith(".gz"):
         with gzip.open(fname, "rb") as fp:
             D = nx.read_gpickle(fp)
@@ -64,7 +77,8 @@ def read_gpickle(fname):
     return MultiDirectedGraph(D) if D.is_multigraph() else DirectedGraph(D)
 
 
-def write_gpickle(G, fname):
+def write_gpickle(G: GraphLike, fname: str) -> None:
+    """Write a graph to gpickle, with optional gzip compression."""
     if fname.endswith(".gz"):
         with gzip.open(fname, "wb") as fp:
             nx.write_gpickle(G, fp)
@@ -72,15 +86,15 @@ def write_gpickle(G, fname):
         nx.write_gpickle(G, fname)
 
 
-def write_graphml(fname, G):
+def write_graphml(fname: str, G: GraphLike) -> None:
     """
-    Write graph to graphml which does not support non-scalars or None so they are converted to string and removed, respectively.
-    :param fname:
-    :param G:
-    :return: None
+    Write a graph to GraphML after normalizing unsupported attribute values.
+
+    GraphML does not support ``None`` or arbitrary container values. ``None``
+    entries are dropped and non-scalars are stringified before export.
     """
 
-    def fix_scalar_None(d):
+    def fix_scalar_none(d: MutableMapping[str, Any]) -> None:
         for k in list(d):
             if d[k] is None:
                 del d[k]
@@ -91,21 +105,26 @@ def write_graphml(fname, G):
     _G = G.copy()
 
     for n, d in _G.nodes(data=True):
-        fix_scalar_None(d)
+        fix_scalar_none(d)
     for u, v, d in _G.edges(data=True):
-        fix_scalar_None(d)
-    fix_scalar_None(_G.graph)
+        fix_scalar_none(d)
+    fix_scalar_none(_G.graph)
 
     nx.write_graphml(_G, expanduser(fname))
 
 
-def write_arango_graphml(fname, D, centrality=None):
+def write_arango_graphml(
+    fname: str,
+    D: GraphLike,
+    centrality: dict[Any, float] | None = None,
+) -> None:
     """
-    Write graph with centrality as a property and convert list properties to strings.
-    :param fname:
-    :param D:
-    :param centrality: dict
-    :return: None
+    Write a graph to GraphML using the legacy Arango-style node schema.
+
+    Args:
+        fname: Output file path.
+        D: Graph to export.
+        centrality: Optional per-node centrality values to add before export.
     """
     if centrality is not None:
         assert type(centrality) is dict, "centrality should be a dict"
@@ -129,8 +148,15 @@ def write_arango_graphml(fname, D, centrality=None):
 
 
 def write_graphml_top(
-    fname, D, start_nodes, centrality, top, method="simple", weight="weight"
-):
+    fname: str,
+    D: GraphLike,
+    start_nodes: set[Any] | list[Any],
+    centrality: dict[Any, float],
+    top: int,
+    method: str = "simple",
+    weight: str = "weight",
+) -> None:
+    """Write a top-ranked path subgraph to GraphML using the requested method."""
     if method == "simple":
         write_arango_graphml(
             fname,
@@ -155,11 +181,12 @@ def write_graphml_top(
         )
 
 
-def _serializable_formats(d):
+def _serializable_formats(d: Any) -> None:
     """
-    Recursively find and replace sets, tuples -> list and int64 -> int32.
-    :param d:
-    :return: None
+    Normalize nested objects in place so they can be serialized as JSON.
+
+    Sets are converted to lists and NumPy integer scalars are converted to
+    Python ``int`` values.
     """
     try:
         dict_iter = d.items()
@@ -188,24 +215,28 @@ def _serializable_formats(d):
                 _serializable_formats(v)
 
 
-def serializable_node_link_data(G):
+def serializable_node_link_data(G: GraphLike) -> dict[str, Any]:
+    """Return ``nx.node_link_data`` output normalized for JSON serialization."""
     data = copy.deepcopy(nx.node_link_data(G))
     _serializable_formats(data)
     return data
 
 
-def serializable_cytoscape_data(G):
+def serializable_cytoscape_data(G: GraphLike) -> dict[str, Any]:
+    """Return ``nx.cytoscape_data`` output normalized for JSON serialization."""
     data = copy.deepcopy(nx.cytoscape_data(G))
     _serializable_formats(data)
     return data
 
 
-def write_json(obj: dict, fname: str, zip_it=False):
+def write_json(obj: dict[str, Any], fname: str, zip_it: bool = False) -> None:
     """
-    Write json or json.gz to file or stdout where numpy types are handled and a git commit hash is prepended.
-    :param obj:
-    :param fname: filename to write to
-    :return:
+    Write JSON to disk with support for NumPy scalar and array values.
+
+    Args:
+        obj: JSON-serializable mapping to write.
+        fname: Output filename.
+        zip_it: When ``True``, write a gzipped JSON file.
     """
     logging.info(f'writing {fname.rsplit(".", 1)[0]}')
     fp = gzip.open(fname, "w") if zip_it else open(fname, "w")
@@ -216,7 +247,7 @@ def write_json(obj: dict, fname: str, zip_it=False):
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types taken from https://github.com/hmallen/numpyencoder"""
 
-    def default(self, obj):
+    def default(self, obj: Any) -> Any:
         if isinstance(obj, (np.integer,)):
             return int(obj)
         elif isinstance(obj, (np.floating,)):
@@ -233,17 +264,19 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def nodes2tsv(D, fname):
+def nodes2tsv(D: DirectedGraph | MultiDirectedGraph, fname: str) -> None:
     """
     Write node properties from D to a tab-separated file.
-    :param D: (Multi)DirectedGraph
-    :param fname: str filename
-    :return:
+
+    Args:
+        D: Graph whose node properties should be exported.
+        fname: Output TSV path.
     """
     pd.DataFrame(D.get(), index=list(D)).to_csv(fname, sep="\t", index_label="arango_id")
 
 
-def nodes2excel(D, fname: str):
+def nodes2excel(D: DirectedGraph | MultiDirectedGraph, fname: str) -> None:
+    """Write node properties and node-property metadata to an Excel workbook."""
     logging.info(f'writing {fname.rsplit(".", 1)[0]}')
     df = pd.DataFrame(D.get(), index=list(D))
     df_meta = pd.DataFrame(index=df.columns)
