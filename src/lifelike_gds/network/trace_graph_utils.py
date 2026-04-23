@@ -51,6 +51,8 @@ def write_sankey_file(filename: str, D: GraphLike) -> None:
     Export graph to Sankey format JSON file.
     
     Uses indexed edges instead of (source, target) tuples for more compact representation.
+    Neo4j element-id-like node ids are converted to trailing integers in the
+    exported payload so downstream Sankey viewers can consume numeric ids.
     Creates parent directories as needed.
     
     Args:
@@ -62,7 +64,7 @@ def write_sankey_file(filename: str, D: GraphLike) -> None:
     # Create parent directories if they don't exist
     Path(filename).parent.mkdir(parents=True, exist_ok=True)
     
-    data = serializable_node_link_data(D)
+    data = serializable_node_link_data(_clean_sankey_node_ids(D))
     link_index(data)
     write_json(data, filename)
 
@@ -125,6 +127,129 @@ def link_index(data: dict[str, Any]) -> None:
     if data["multigraph"]:
         for link in data[link_key]:
             del link["key"]
+
+
+def _clean_sankey_node_ids(D: GraphLike) -> GraphLike:
+    """
+    Return a copy of ``D`` with Sankey-compatible numeric node ids.
+
+    This helper is used internally by ``write_sankey_file`` when a graph uses Neo4j
+    ``elementId(...)`` values such as
+    ``"4:cc788394-6535-41bd-b848-b5cba5d96568:482176"``. Those ids are relabeled
+    to their trailing numeric component (``482176`` in the example). Plain
+    numeric strings are also converted to ``int`` values. Non-numeric ids are
+    left unchanged.
+
+    The helper updates the graph's node ids along with any references stored in
+    ``graph["node_sets"]`` and ``graph["trace_networks"]``.
+
+    Args:
+        D: Graph to relabel for Sankey export.
+
+    Returns:
+        A relabeled copy of ``D``.
+
+    Raises:
+        ValueError: If two different node ids would collapse to the same integer.
+    """
+    id_mapping = _build_clean_node_id_mapping(D)
+    cleaned = D.copy() if not id_mapping else nx.relabel_nodes(D, id_mapping, copy=True)
+    if not id_mapping:
+        return cleaned
+
+    _relabel_node_sets(cleaned, id_mapping)
+    _relabel_trace_networks(cleaned, id_mapping)
+    return cleaned
+
+
+def _build_clean_node_id_mapping(D: GraphLike) -> dict[NodeId, NodeId]:
+    """Build a relabel map for nodes whose ids can be normalized to integers."""
+    id_mapping: dict[NodeId, NodeId] = {}
+    seen_targets: dict[NodeId, NodeId] = {}
+
+    for node_id in D.nodes:
+        cleaned_id = _clean_single_node_id(node_id)
+        if cleaned_id == node_id:
+            continue
+        existing = seen_targets.get(cleaned_id)
+        if existing is not None and existing != node_id:
+            raise ValueError(
+                f"Cannot relabel node ids {existing!r} and {node_id!r} to the same id {cleaned_id!r}."
+            )
+        seen_targets[cleaned_id] = node_id
+        id_mapping[node_id] = cleaned_id
+
+    return id_mapping
+
+
+def _clean_single_node_id(node_id: NodeId) -> NodeId:
+    """Convert a numeric node id representation to ``int`` when possible."""
+    if isinstance(node_id, int):
+        return node_id
+    if not isinstance(node_id, str):
+        return node_id
+    if node_id.isdigit():
+        return int(node_id)
+
+    trailing_digits = node_id.rsplit(":", 1)[-1]
+    if trailing_digits.isdigit():
+        return int(trailing_digits)
+    return node_id
+
+
+def _relabel_node_sets(D: GraphLike, id_mapping: dict[NodeId, NodeId]) -> None:
+    """Relabel node ids stored under ``graph['node_sets']`` in place."""
+    for node_set in D.graph.get("node_sets", {}).values():
+        if isinstance(node_set, dict) and "nodes" in node_set:
+            node_set["nodes"] = {_relabel_node_ref(node_id, id_mapping) for node_id in node_set["nodes"]}
+        elif isinstance(node_set, set):
+            updated_nodes = {_relabel_node_ref(node_id, id_mapping) for node_id in node_set}
+            node_set.clear()
+            node_set.update(updated_nodes)
+
+
+def _relabel_trace_networks(D: GraphLike, id_mapping: dict[NodeId, NodeId]) -> None:
+    """Relabel trace payload node references in place."""
+    for trace_network in D.graph.get("trace_networks", []):
+        for trace in trace_network.get("traces", []):
+            if "source" in trace:
+                trace["source"] = _relabel_node_ref(trace["source"], id_mapping)
+            if "target" in trace:
+                trace["target"] = _relabel_node_ref(trace["target"], id_mapping)
+            if "node_paths" in trace:
+                trace["node_paths"] = [
+                    [_relabel_node_ref(node_id, id_mapping) for node_id in path]
+                    for path in trace["node_paths"]
+                ]
+            if "edges" in trace:
+                trace["edges"] = _relabel_edge_refs(trace["edges"], id_mapping)
+            if "detail_edges" in trace:
+                trace["detail_edges"] = _relabel_edge_refs(trace["detail_edges"], id_mapping)
+
+
+def _relabel_node_ref(node_id: NodeId, id_mapping: dict[NodeId, NodeId]) -> NodeId:
+    """Return the relabeled node id when a mapping exists."""
+    return id_mapping.get(node_id, node_id)
+
+
+def _relabel_edge_refs(
+    edge_refs: set[tuple[Any, ...]] | list[tuple[Any, ...]],
+    id_mapping: dict[NodeId, NodeId],
+) -> set[tuple[Any, ...]] | list[tuple[Any, ...]]:
+    """Relabel node ids in edge tuples while preserving the input container type."""
+    relabeled_edges = [_relabel_edge_ref(edge_ref, id_mapping) for edge_ref in edge_refs]
+    return set(relabeled_edges) if isinstance(edge_refs, set) else relabeled_edges
+
+
+def _relabel_edge_ref(edge_ref: tuple[Any, ...], id_mapping: dict[NodeId, NodeId]) -> tuple[Any, ...]:
+    """Relabel the node endpoints in a trace edge tuple."""
+    if len(edge_ref) < 2:
+        return edge_ref
+    return (
+        _relabel_node_ref(edge_ref[0], id_mapping),
+        _relabel_node_ref(edge_ref[1], id_mapping),
+        *edge_ref[2:],
+    )
 
 
 # ============================================================================

@@ -104,6 +104,7 @@ def test_load_node_details_and_export_dataframe_include_graph_attributes():
     df = tracegraph.get_nodes_detail_as_dataframe([1, 2])
 
     assert tracegraph.graph.nodes[1]["description"] == "one"
+    assert tracegraph.graph.nodes[1]["label"] == "one"
     assert set(df["id"]) == {1, 2}
     assert df.set_index("id").loc[1, "score"] == 10
 

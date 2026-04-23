@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional, TypeAlias
+from pathlib import Path
 
 from lifelike_gds.graph_sources.database import NodeRecord
 from lifelike_gds.network.graph_source import GraphSource
@@ -255,6 +256,7 @@ class ShortestPathTrace(TraceGraphNx):
         target_name: str,
         target_nodes: list[NodeRecord],
         graph_description: str,
+        output_dir: str | Path,
     ) -> bool:
         """
         Build and export a shortest-path trace network between two node groups.
@@ -285,9 +287,12 @@ class ShortestPathTrace(TraceGraphNx):
         self.add_graph_description(graph_description)
         source_as_query = len(source_nodes) > len(target_nodes)
         ok = self.add_shortest_paths(source_name, target_name, source_as_query)
+        self.clean_graph()
+        self.load_graph_detail()
         if ok:
             graphfile = f"Shortest_paths_from_{source_name}_to_{target_name}.graph"
-            self.write_to_sankey_file(graphfile)
+            filepath = Path(output_dir) / graphfile
+            self.write_to_sankey_file(filepath)
             return True
         else:
             logger.info("No paths found from %s to %s", source_name, target_name)

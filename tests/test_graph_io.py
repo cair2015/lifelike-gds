@@ -49,6 +49,17 @@ def test_serializable_node_link_data_converts_sets_and_numpy_ints():
     assert edge_list[0]["flags"] == ["x"]
 
 
+def test_serializable_node_link_data_uses_legacy_links_key():
+    graph_io = load_graph_io_module()
+    graph = DirectedGraph()
+    graph.add_edge("n1", "n2")
+
+    data = graph_io.serializable_node_link_data(graph)
+
+    assert "links" in data
+    assert "edges" not in data
+
+
 def test_numpy_encoder_handles_core_numpy_types():
     graph_io = load_graph_io_module()
 

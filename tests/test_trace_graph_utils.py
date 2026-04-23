@@ -12,6 +12,7 @@ from lifelike_gds.network.trace_graph_utils import (
     pagerank_influence,
     set_intersection_pagerank,
     set_nReach,
+    write_sankey_file,
     write_cytoscape_file,
 )
 from lifelike_gds.network.graph_utils import DirectedGraph, MultiDirectedGraph
@@ -56,6 +57,41 @@ def test_link_index_supports_current_node_link_edge_key_for_simple_and_multi_gra
 
     assert multi_data["graph"]["trace_networks"][0]["traces"][0]["edges"] == [1]
     assert all("key" not in edge for edge in multi_data["edges"])
+
+
+def test_write_sankey_file_exports_numeric_node_ids_for_element_ids(tmp_path):
+    source = "4:cc788394-6535-41bd-b848-b5cba5d96568:482176"
+    target = "4:cc788394-6535-41bd-b848-b5cba5d96568:482177"
+    graph = DirectedGraph()
+    graph.add_edge(source, target)
+    graph.set_node_set("sources", {source}, name="sources")
+    graph.set_node_set("targets", {target}, name="targets")
+    graph.graph["trace_networks"] = [
+        {
+            "traces": [
+                {
+                    "source": source,
+                    "target": target,
+                    "node_paths": [[source, target]],
+                    "edges": {(source, target)},
+                    "detail_edges": [(source, target, {"kind": "detail"})],
+                }
+            ]
+        }
+    ]
+    out = tmp_path / "sankey.graph"
+
+    write_sankey_file(str(out), graph)
+
+    data = json.loads(out.read_text())
+    assert {node["id"] for node in data["nodes"]} == {482176, 482177}
+    assert data["graph"]["node_sets"]["sources"] == [482176]
+    assert data["graph"]["node_sets"]["targets"] == [482177]
+    trace = data["graph"]["trace_networks"][0]["traces"][0]
+    assert trace["source"] == 482176
+    assert trace["target"] == 482177
+    assert trace["node_paths"] == [[482176, 482177]]
+    assert data["graph"]["trace_networks"][0]["traces"][0]["edges"] == [0]
 
 
 def test_pagerank_helpers_add_expected_node_properties():

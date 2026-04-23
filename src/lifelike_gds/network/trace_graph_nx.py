@@ -495,3 +495,5 @@ class TraceGraphNx:
         """
         write_cytoscape_file(str(filename), self.graph)
         logger.info(f"Graph exported to {filename}")
+
+        

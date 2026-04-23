@@ -199,6 +199,10 @@ class GraphSource(ABC):
             if node_id not in graph:
                 continue
             graph.nodes[node_id].update(node)
+            graph.nodes[node_id].setdefault(
+                "label",
+                node.get("displayName") or node.get("name") or str(node_id),
+            )
             valid_nodes.append(node)
 
         if valid_nodes:

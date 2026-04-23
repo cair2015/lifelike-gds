@@ -217,7 +217,14 @@ def _serializable_formats(d: Any) -> None:
 
 def serializable_node_link_data(G: GraphLike) -> dict[str, Any]:
     """Return ``nx.node_link_data`` output normalized for JSON serialization."""
-    data = copy.deepcopy(nx.node_link_data(G))
+    try:
+        # Force the legacy Sankey-compatible top-level edge key regardless of
+        # the installed NetworkX default.
+        data = copy.deepcopy(nx.node_link_data(G, edges="links"))
+    except TypeError:
+        data = copy.deepcopy(nx.node_link_data(G))
+        if "edges" in data and "links" not in data:
+            data["links"] = data.pop("edges")
     _serializable_formats(data)
     return data
 
