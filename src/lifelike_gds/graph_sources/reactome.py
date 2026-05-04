@@ -8,26 +8,48 @@ from typing import Any, Dict, List, Optional
 import networkx as nx
 
 from lifelike_gds.graph_sources.domain_config import (
-    REACTOME_ALLOWED_NODE_ENTITY_TYPES,
-    REACTOME_CURRENCY_METABOLITE_LABEL,
-    REACTOME_DEFAULT_EXCLUDED_NODE_LABELS,
     REACTOME_EDGE_DESC_DICT,
+    REACTOME_EXCLUDED_NODE_LABELS,
+    REACTOME_TRACE_NODE_LABEL,
     REACTOME_TRACE_RELATIONSHIP_TYPES,
     REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF,
 )
 from lifelike_gds.network.graph_source import GraphSource
 from lifelike_gds.utils import get_id
 
-ALLOWED_NODE_ENTITY_TYPES = list(REACTOME_ALLOWED_NODE_ENTITY_TYPES)
 REACTOME_TRACE_RELS = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
 REACTOME_TRACE_RELS_WITH_REF = list(REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF)
-CURRENCY_METABOLITE_LABEL = REACTOME_CURRENCY_METABOLITE_LABEL
-DEFAULT_EXCLUDED_NODE_LABELS = list(REACTOME_DEFAULT_EXCLUDED_NODE_LABELS)
 EDGE_DESC_DICT = dict(REACTOME_EDGE_DESC_DICT)
 
 
 class Reactome(GraphSource):
     """Database-agnostic Reactome graph source with shared domain behavior."""
+
+    def initiate_trace_graph(
+        self,
+        tracegraph: "TraceGraphNx",
+        exclude_node_labels: list[str] = REACTOME_EXCLUDED_NODE_LABELS,
+        **_: Any,
+    ) -> None:
+        excl_clause = " AND ".join(
+            f"NOT a:{lbl} AND NOT b:{lbl}" for lbl in exclude_node_labels
+        )
+        rel_types = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
+
+        query = f"""
+        MATCH (a:{REACTOME_TRACE_NODE_LABEL})-[r]->(b:{REACTOME_TRACE_NODE_LABEL})
+        WHERE {excl_clause}
+        AND type(r) IN $rel_types
+        RETURN
+          elementId(a) AS source,
+          elementId(b) AS target,
+          type(r) AS relationship_type,
+          elementId(r) AS relationship_id
+        """
+        rows = self.database.get_query_values(query, rel_types=rel_types)
+        for row in rows:
+            tracegraph.graph.add_edge(row["source"], row["target"], label=row["relationship_type"])
+      
 
     @classmethod
     def get_node_name(cls, node: Dict[str, Any]) -> Optional[str]:
@@ -35,19 +57,11 @@ class Reactome(GraphSource):
 
     @classmethod
     def get_node_desc(cls, node: Dict[str, Any]) -> Optional[str]:
-        entity_type = node.get("entityType")
+        entity_type = node.get("schemaClass") or node.get("entityType")
         display_name = node.get("displayName")
         if entity_type and display_name:
             return f"{entity_type} {display_name}"
         return display_name or node.get("name")
-
-    @classmethod
-    def get_node_entity_type(cls, node: Dict[str, Any]) -> str:
-        """Map unsupported entity types back to the generic Reactome entity bucket."""
-        entity_type = node.get("entityType", "Entity")
-        if entity_type in ALLOWED_NODE_ENTITY_TYPES:
-            return entity_type
-        return "Entity"
 
     @classmethod
     def split_display_name(cls, display_name: str) -> tuple[str, str]:
@@ -81,11 +95,11 @@ class Reactome(GraphSource):
         key: Optional[str] = None,
     ) -> None:
         source_display_name = (
-            f"{start_node.get('entityType')}"
+            f"{start_node.get('schemaClass') or start_node.get('entityType')}"
             f"({cls.split_display_name(start_node.get('displayName', ''))[0]})"
         )
         target_display_name = (
-            f"{end_node.get('entityType')}"
+            f"{end_node.get('schemaClass') or end_node.get('entityType')}"
             f"({cls.split_display_name(end_node.get('displayName', ''))[0]})"
         )
         nlg = f"{source_display_name} | {edge_type} | {target_display_name}"
@@ -104,7 +118,7 @@ class Reactome(GraphSource):
             node_id = get_id(node)
             if node_id not in graph:
                 continue
-            lines = [f"NODE: {node.get('entityType')}"]
+            lines = [f"NODE: {node.get('schemaClass') or node.get('entityType')}"]
             lines.extend(node.get("synonyms", []))
             lines.append("")
             if "summation" in graph.nodes[node_id]:

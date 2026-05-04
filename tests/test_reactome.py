@@ -1,6 +1,7 @@
 import networkx as nx
 import pandas as pd
 
+from lifelike_gds.graph_sources.domain_config import REACTOME_TRACE_RELATIONSHIP_TYPES
 from lifelike_gds.graph_sources.reactome import Reactome
 from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
@@ -8,6 +9,7 @@ from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 class FakeDatabase:
     def __init__(self):
         self.trace_calls = []
+        self.query_calls = []
         self.excel_calls = []
 
     def get_trace_graph_data(self, exclude_nodes=None, exclude_node_labels=None):
@@ -21,6 +23,12 @@ class FakeDatabase:
             pd.DataFrame([{"node_id": "n1"}, {"node_id": "n2"}]),
             pd.DataFrame([{"source": "n1", "target": "n2", "type": "input"}]),
         )
+
+    def get_query_values(self, query, **kwargs):
+        self.query_calls.append(kwargs)
+        return [
+            {"source": "n1", "target": "n2", "relationship_type": "input", "relationship_id": "r1"},
+        ]
 
     def get_summation_data(self, nodes):
         return {node["id"]: f"summary for {node['id']}" for node in nodes}
@@ -40,8 +48,6 @@ def test_reactome_display_name_and_entity_helpers():
     node = {"displayName": "ATP [cytosol]", "entityType": "Chemical"}
     assert Reactome.get_node_name(node) == "ATP"
     assert Reactome.get_node_desc(node) == "Chemical ATP [cytosol]"
-    assert Reactome.get_node_entity_type(node) == "Chemical"
-    assert Reactome.get_node_entity_type({"entityType": "UnsupportedThing"}) == "Entity"
 
 
 def test_reactome_loads_projection_into_trace_graph():
@@ -54,8 +60,9 @@ def test_reactome_loads_projection_into_trace_graph():
 
     assert set(tracegraph.graph.nodes) == {"n1", "n2"}
     assert tracegraph.graph.number_of_edges() == 2
+    # initiate_trace_graph uses get_query_values; load_graph_to_tracegraph uses get_trace_graph_data
+    assert database.query_calls == [{"rel_types": list(REACTOME_TRACE_RELATIONSHIP_TYPES)}]
     assert database.trace_calls == [
-        {"exclude_nodes": None, "exclude_node_labels": ["CurrencyMetabolite"]},
         {"exclude_nodes": ["n9"], "exclude_node_labels": ["Ignore"]},
     ]
 

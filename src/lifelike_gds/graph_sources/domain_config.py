@@ -2,56 +2,29 @@
 
 from __future__ import annotations
 
-REACTOME_ALLOWED_NODE_ENTITY_TYPES = (
-    "Chemical",
-    "Protein",
-    "Entity",
-    "Reaction",
-    "Gene",
-    "Compound",
-    "Species",
-    "Study",
-    "Pathway",
-    "Phenotype",
-    "Anatomy",
-    "Lab Strain",
-    "Note",
-    "Cause",
-    "Observation",
-    "Association",
-    "Effect",
-    "Correlation",
-    "Map",
-    "Link",
-    "Lab Sample",
-    "Food",
-    "Phenomena",
-    "Company",
-    "Mutation",
-)
-
 REACTOME_TRACE_RELATIONSHIP_TYPES = (
-    "activeUnitOf",
-    "candidateOf",
-    "catalystOf",
-    "catalyzes",
-    "componentOf",
-    "input",
-    "memberOf",
-    "output",
-    "regulates",
-    "regulatorOf",
-    "repeatedUnitOf",
-    "requiredInput",
+  'activeUnitOf',
+  'candidateOf',
+  'catalystOf',
+  'catalyzes',
+  'componentOf',
+  'eventOf',
+  'inputOf',
+  'memberOf',
+  'output',
+  'precedesEvent',
+  'regulates',
+  'regulatorOf',
+  'repeatedUnitOf',
+  'requiredInputOf'
 )
-
 REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF = (
     *REACTOME_TRACE_RELATIONSHIP_TYPES,
     "referenceEntity",
 )
 
-REACTOME_CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
-REACTOME_DEFAULT_EXCLUDED_NODE_LABELS = (REACTOME_CURRENCY_METABOLITE_LABEL,)
+REACTOME_TRACE_NODE_LABEL = "HumanTrace"
+REACTOME_EXCLUDED_NODE_LABELS = ['TraceCurrency', 'TraceHub']
 
 REACTOME_EDGE_DESC_DICT = {
     "activeUnitOf": "is active unit of",
@@ -60,14 +33,15 @@ REACTOME_EDGE_DESC_DICT = {
     "catalyzes": "catalyzes",
     "componentOf": "is component of",
     "hasComponent": "has component",
-    "input": "is consumed by",
+    "inputOf": "is consumed by",
     "memberOf": "is member of",
     "output": "produces",
+    "precedesEvent": "precedes",
     "referenceEntity": "has reference entity",
     "regulates": "regulates",
     "regulatorOf": "is regulator of",
     "repeatedUnitOf": "is repeated unit of",
-    "requiredInput": "is required input for",
+    "requiredInputOf": "is required input for",
 }
 
 BIOCYC_CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
@@ -87,4 +61,3 @@ BIOCYC_EDGE_DESC_DICT = {
     "ACTIVATES": "activates",
     "INHIBITS": "inhibits",
 }
-

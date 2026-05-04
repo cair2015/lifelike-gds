@@ -332,7 +332,7 @@ class Neo4jDatabase:
             exclude_nodes=exclude_nodes,
             exclude_node_labels=exclude_node_labels,
         )
-        return self.get_dataframe(node_query, **params), self.get_dataframe(rel_query, **params)
+        return self.get_dataframe(node_query, parameters=params), self.get_dataframe(rel_query, parameters=params)
 
     @classmethod
     def default_trace_graph_projection_scenarios(cls) -> List[Dict[str, object]]:
@@ -432,13 +432,13 @@ class Neo4jDatabase:
         """
         return self.run_query(query, **parameters)
 
-    def get_dataframe(self, query: str, **parameters: Any) -> pd.DataFrame:
+    def get_dataframe(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         """
         Execute a query and return the result as a DataFrame.
 
         Args:
             query: Cypher query text.
-            **parameters: Query parameters.
+            parameters: Query parameters as a dictionary.
 
         Returns:
             DataFrame containing the query result rows.

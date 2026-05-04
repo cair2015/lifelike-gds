@@ -9,8 +9,7 @@ dotenv.load_dotenv()
 query = """
 match (r:ReferenceMolecule)-[:referenceEntity]-(p:PhysicalEntity)
     where r.databaseName = 'ChEBI' and r.identifier in $chebi_ids
-    return r.stId as chebi, r.name, p.stId, p.compartment, p.synonyms
-    order by p.compartment
+    return r.stId as chebi, r.name, p.stId, p.displayName
 """
 
 def run_query_with_connection():
