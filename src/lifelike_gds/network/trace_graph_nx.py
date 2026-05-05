@@ -13,7 +13,7 @@ from pathlib import Path
 import logging
 import inspect
 import os.path
-from typing import Any
+from typing import Any, Iterable
 
 import networkx as nx
 import pandas as pd
@@ -71,6 +71,15 @@ class TraceGraphNx:
         """Initialize graph with default nodes and relationships from database."""
         self.graphsource.initiate_trace_graph(self, **kwargs)
 
+    @staticmethod
+    def _as_row_records(rows: Any) -> list[dict[str, Any]]:
+        """Normalize tabular data into a list of row dictionaries."""
+        if isinstance(rows, pd.DataFrame):
+            return rows.to_dict(orient="records")
+        if rows is None:
+            return []
+        return list(rows)
+
     def set_datadir(self, datadir: str) -> None:
         """
         Set data directory for output files.
@@ -82,42 +91,55 @@ class TraceGraphNx:
         if not os.path.exists(datadir):
             os.makedirs(datadir, exist_ok=True)
 
-    def add_nodes(self, node_query: str, **parameters: Any) -> None:
+    def add_node_ids(self, node_ids: Iterable[NodeId]) -> None:
         """
-        Add nodes to graph from database query result.
-        
-        Query should return 'node_id' column containing node IDs.
-        
-        Args:
-            node_query: Query string (Cypher, AQL, etc.) returning node IDs
-            **parameters: Query parameters
-        """
-        node_data = self.graphsource.database.get_dataframe(node_query, **parameters)
-        
-        if not node_data.empty:
-            nodes = list(node_data["node_id"])
-            self.graph.add_nodes_from(nodes)
-            logger.info(f"Added {len(nodes)} nodes to graph")
+        Add node ids to the graph.
 
-    def add_rels(self, rel_query: str, **parameters: Any) -> None:
-        """
-        Add relationships to graph from database query result.
-        
-        Query should return 'source', 'target', and 'type' columns.
-        
         Args:
-            rel_query: Query string returning relationships
-            **parameters: Query parameters
+            node_ids: Iterable of node identifiers.
         """
-        rel_data = self.graphsource.database.get_dataframe(rel_query, **parameters)
-        
-        for _, row in rel_data.iterrows():
-            source = row["source"]
-            target = row["target"]
-            rel_type = row["type"]
-            self.graph.add_edge(source, target, label=rel_type)
-        
-        logger.info(f"Added {len(rel_data)} relationships to graph")
+        nodes = list(node_ids)
+        if not nodes:
+            return
+        self.graph.add_nodes_from(nodes)
+        logger.info("Added %s nodes to graph", len(nodes))
+
+    def add_nodes_from_rows(self, rows: Any, node_key: str = "node_id") -> None:
+        """
+        Add nodes to the graph from tabular rows.
+
+        Args:
+            rows: DataFrame or iterable of dictionaries.
+            node_key: Row key containing the node identifier.
+        """
+        self.add_node_ids(
+            row[node_key] for row in self._as_row_records(rows) if node_key in row
+        )
+
+    def add_relationship_rows(
+        self,
+        rows: Any,
+        source_key: str = "source",
+        target_key: str = "target",
+        label_key: str = "type",
+    ) -> None:
+        """
+        Add relationships to the graph from tabular rows.
+
+        Args:
+            rows: DataFrame or iterable of dictionaries.
+            source_key: Row key containing the source node id.
+            target_key: Row key containing the target node id.
+            label_key: Row key containing the relationship label.
+        """
+        row_records = self._as_row_records(rows)
+        for row in row_records:
+            self.graph.add_edge(
+                row[source_key],
+                row[target_key],
+                label=row[label_key],
+            )
+        logger.info("Added %s relationships to graph", len(row_records))
 
     def add_nodes_rels_from_paths(self, paths: list[Any]) -> None:
         """

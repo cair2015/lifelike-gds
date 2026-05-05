@@ -1,5 +1,6 @@
 from lifelike_gds.network.shortest_paths_trace import ShortestPathTrace
 from lifelike_gds.network.graph_source import GraphSource
+from lifelike_gds.graph_sources.domain_config import REACTOME_TRACE_NODE_LABEL
 from lifelike_gds.graph_sources.reactome_db import ReactomeDB
 from lifelike_gds.graph_sources.reactome import Reactome
 from lifelike_gds.network.shortest_paths_trace import ShortestPathTrace
@@ -26,13 +27,22 @@ database = ReactomeDB(uri=os.getenv("NEO4J_URI"),
                       password=os.getenv("NEO4J_PASSWORD"),
                       database=os.getenv("NEO4J_DATABASE"))
 
-source_nodes = database.get_nodes_by_attr(attr_values=source_stIds, attr_name='stId')
-target_nodes = database.get_nodes_by_attr(attr_values=[target_stId], attr_name='stId')
+reactome = Reactome(database=database)
+
+source_nodes = database.get_nodes_by_attr(
+    attr_values=source_stIds,
+    attr_name='stId',
+    node_label=reactome.node_label
+)
+target_nodes = database.get_nodes_by_attr(
+    attr_values=[target_stId],
+    attr_name='stId',
+    node_label=reactome.node_label
+)
 
 print(f"Found {len(source_nodes)} source nodes and {len(target_nodes)} target nodes.")
 
-graph_source = Reactome(database=database)
-tracegraph = ShortestPathTrace(Reactome(database=database))
+tracegraph = ShortestPathTrace(reactome)
 
 tracegraph.init_default_graph()
 tracegraph.write_shortest_paths(source_name=source_name, source_nodes=source_nodes, 

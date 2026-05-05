@@ -8,36 +8,23 @@ from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 class FakeDatabase:
     def __init__(self):
-        self.trace_calls = []
         self.query_calls = []
         self.excel_calls = []
 
-    def get_trace_graph_data(self, exclude_nodes=None, exclude_node_labels=None):
-        self.trace_calls.append(
-            {
-                "exclude_nodes": exclude_nodes,
-                "exclude_node_labels": exclude_node_labels,
-            }
-        )
-        return (
-            pd.DataFrame([{"node_id": "n1"}, {"node_id": "n2"}]),
-            pd.DataFrame([{"source": "n1", "target": "n2", "type": "input"}]),
-        )
-
     def get_query_values(self, query, **kwargs):
-        self.query_calls.append(kwargs)
+        self.query_calls.append({"query": query, "params": kwargs})
         return [
             {"source": "n1", "target": "n2", "relationship_type": "input", "relationship_id": "r1"},
         ]
 
-    def get_summation_data(self, nodes):
+    def get_summation_data(self, nodes, node_label=None):
         return {node["id"]: f"summary for {node['id']}" for node in nodes}
 
-    def get_gene_names(self, nodes):
+    def get_gene_names(self, nodes, node_label=None):
         return {node["id"]: [f"gene-{node['id']}"] for node in nodes}
 
-    def get_node_data_for_excel(self, node_ids):
-        self.excel_calls.append(node_ids)
+    def get_node_data_for_excel(self, node_ids, node_label=None):
+        self.excel_calls.append({"node_ids": node_ids, "node_label": node_label})
         return pd.DataFrame([{"id": node_ids[0], "displayName": "ATP"}])
 
 
@@ -60,11 +47,11 @@ def test_reactome_loads_projection_into_trace_graph():
 
     assert set(tracegraph.graph.nodes) == {"n1", "n2"}
     assert tracegraph.graph.number_of_edges() == 2
-    # initiate_trace_graph uses get_query_values; load_graph_to_tracegraph uses get_trace_graph_data
-    assert database.query_calls == [{"rel_types": list(REACTOME_TRACE_RELATIONSHIP_TYPES)}]
-    assert database.trace_calls == [
-        {"exclude_nodes": ["n9"], "exclude_node_labels": ["Ignore"]},
-    ]
+    assert len(database.query_calls) == 2
+    assert database.query_calls[0]["params"] == {"rel_types": list(REACTOME_TRACE_RELATIONSHIP_TYPES)}
+    assert database.query_calls[1]["params"] == {"rel_types": list(REACTOME_TRACE_RELATIONSHIP_TYPES)}
+    assert "NOT a:CurrencyMetabolite AND NOT b:CurrencyMetabolite" in database.query_calls[0]["query"]
+    assert "NOT a:Ignore AND NOT b:Ignore" in database.query_calls[1]["query"]
 
 
 def test_reactome_sets_node_and_edge_descriptions():
@@ -123,4 +110,4 @@ def test_reactome_excel_passthrough():
 
     frame = graphsource.get_node_data_for_excel(["n1"])
     assert frame.to_dict(orient="records") == [{"id": "n1", "displayName": "ATP"}]
-    assert database.excel_calls == [["n1"]]
+    assert database.excel_calls == [{"node_ids": ["n1"], "node_label": graphsource.node_label}]

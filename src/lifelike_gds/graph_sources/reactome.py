@@ -3,31 +3,51 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import networkx as nx
 
 from lifelike_gds.graph_sources.domain_config import (
     REACTOME_EDGE_DESC_DICT,
     REACTOME_EXCLUDED_NODE_LABELS,
+    REACTOME_REFERENCE_REL_TYPE,
     REACTOME_TRACE_NODE_LABEL,
     REACTOME_TRACE_RELATIONSHIP_TYPES,
-    REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF,
 )
 from lifelike_gds.network.graph_source import GraphSource
 from lifelike_gds.utils import get_id
+from lifelike_gds.graph_sources.reactome_db import ReactomeDB
+
+if TYPE_CHECKING:
+    from lifelike_gds.network.trace_graph_nx import TraceGraphNx
 
 REACTOME_TRACE_RELS = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
-REACTOME_TRACE_RELS_WITH_REF = list(REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF)
+REACTOME_TRACE_RELS_WITH_REF = [*REACTOME_TRACE_RELATIONSHIP_TYPES, REACTOME_REFERENCE_REL_TYPE]
 EDGE_DESC_DICT = dict(REACTOME_EDGE_DESC_DICT)
 
 
 class Reactome(GraphSource):
     """Database-agnostic Reactome graph source with shared domain behavior."""
 
+    def __init__(
+        self,
+        database: ReactomeDB,
+        node_label: str = REACTOME_TRACE_NODE_LABEL,
+        node_label_prop: str = "displayName",
+    ) -> None:
+        super().__init__(database=database, node_label_prop=node_label_prop)
+        self.node_label = node_label
+
+    def get_node_query_label(self) -> str | None:
+        return self.node_label
+
+    @staticmethod
+    def _format_label_clause(node_label: str | None) -> str:
+        return f":{node_label}" if node_label else ""
+
     def initiate_trace_graph(
         self,
-        tracegraph: "TraceGraphNx",
+        tracegraph: TraceGraphNx,
         exclude_node_labels: list[str] = REACTOME_EXCLUDED_NODE_LABELS,
         **_: Any,
     ) -> None:
@@ -35,9 +55,10 @@ class Reactome(GraphSource):
             f"NOT a:{lbl} AND NOT b:{lbl}" for lbl in exclude_node_labels
         )
         rel_types = list(REACTOME_TRACE_RELATIONSHIP_TYPES)
+        node_label = self._format_label_clause(self.node_label)
 
         query = f"""
-        MATCH (a:{REACTOME_TRACE_NODE_LABEL})-[r]->(b:{REACTOME_TRACE_NODE_LABEL})
+        MATCH (a{node_label})-[r]->(b{node_label})
         WHERE {excl_clause}
         AND type(r) IN $rel_types
         RETURN
@@ -47,9 +68,35 @@ class Reactome(GraphSource):
           elementId(r) AS relationship_id
         """
         rows = self.database.get_query_values(query, rel_types=rel_types)
-        for row in rows:
-            tracegraph.graph.add_edge(row["source"], row["target"], label=row["relationship_type"])
-      
+        tracegraph.add_relationship_rows(
+            rows,
+            source_key="source",
+            target_key="target",
+            label_key="relationship_type",
+        )
+
+    def add_reference_entity_relationships(self, ref_nodes: List[Dict[str, Any]], tracegraph: TraceGraphNx) -> None:
+        node_ids = [get_id(node) for node in ref_nodes]
+        if not node_ids:
+            return
+        label_clause = self._format_label_clause(self.node_label)
+        query = f"""
+        MATCH (a)-[r:{REACTOME_REFERENCE_REL_TYPE}]->(b{label_clause})
+        WHERE elementId(a) IN $node_ids
+        RETURN 
+            elementId(a) AS source,
+            elementId(b) AS target,
+            type(r) AS relationship_type,
+            elementId(r) AS relationship_id
+        """
+        rows = self.database.get_query_values(query, node_ids=node_ids)
+        tracegraph.add_relationship_rows(
+            rows,
+            source_key="source",
+            target_key="target",
+            label_key="relationship_type",
+        )
+    
 
     @classmethod
     def get_node_name(cls, node: Dict[str, Any]) -> Optional[str]:
@@ -57,7 +104,7 @@ class Reactome(GraphSource):
 
     @classmethod
     def get_node_desc(cls, node: Dict[str, Any]) -> Optional[str]:
-        entity_type = node.get("schemaClass") or node.get("entityType")
+        entity_type = node.get("entityType")
         display_name = node.get("displayName")
         if entity_type and display_name:
             return f"{entity_type} {display_name}"
@@ -76,14 +123,20 @@ class Reactome(GraphSource):
     def add_summation(self, nodes: List[Dict[str, Any]], graph: Any) -> None:
         if not hasattr(self.database, "get_summation_data"):
             return
-        node_summation = self.database.get_summation_data(nodes)
+        node_summation = self.database.get_summation_data(
+            nodes,
+            node_label=self.node_label,
+        )
         nx.set_node_attributes(graph, node_summation, "summation")
 
-    def add_gene_names(self, nodes: List[Dict[str, Any]], graph: Any) -> None:
-        if not hasattr(self.database, "get_gene_names"):
-            return
-        node_gene_names = self.database.get_gene_names(nodes)
-        nx.set_node_attributes(graph, node_gene_names, "gene_names")
+    # def add_gene_names(self, nodes: List[Dict[str, Any]], graph: Any) -> None:
+    #     if not hasattr(self.database, "get_gene_names"):
+    #         return
+    #     node_gene_names = self.database.get_gene_names(
+    #         nodes,
+    #         node_label=self.node_label,
+    #     )
+    #     nx.set_node_attributes(graph, node_gene_names, "gene_names")
 
     @classmethod
     def set_edge_description(
@@ -95,11 +148,11 @@ class Reactome(GraphSource):
         key: Optional[str] = None,
     ) -> None:
         source_display_name = (
-            f"{start_node.get('schemaClass') or start_node.get('entityType')}"
+            f"{start_node.get('entityType')}"
             f"({cls.split_display_name(start_node.get('displayName', ''))[0]})"
         )
         target_display_name = (
-            f"{end_node.get('schemaClass') or end_node.get('entityType')}"
+            f"{end_node.get('entityType')}"
             f"({cls.split_display_name(end_node.get('displayName', ''))[0]})"
         )
         nlg = f"{source_display_name} | {edge_type} | {target_display_name}"
@@ -118,7 +171,7 @@ class Reactome(GraphSource):
             node_id = get_id(node)
             if node_id not in graph:
                 continue
-            lines = [f"NODE: {node.get('schemaClass') or node.get('entityType')}"]
+            lines = [f"NODE: {node.get('entityType')}"]
             lines.extend(node.get("synonyms", []))
             lines.append("")
             if "summation" in graph.nodes[node_id]:

@@ -86,7 +86,6 @@ def test_neo4j_connection_dataframe_and_single_value(monkeypatch):
     assert isinstance(frame, pd.DataFrame)
     assert frame.to_dict(orient="records") == rows
     assert connection.get_single_value("RETURN 7 AS value") == 7
-    assert connection.get_single_record("RETURN 7 AS value, 'alpha' AS name") == rows[0]
 
 
 def test_neo4j_connection_single_value_raises_for_empty_results(monkeypatch):
@@ -99,9 +98,6 @@ def test_neo4j_connection_single_value_raises_for_empty_results(monkeypatch):
     with pytest.raises(ValueError, match="No records returned"):
         connection.get_single_value("RETURN 1")
 
-    with pytest.raises(ValueError, match="No records returned"):
-        connection.get_single_record("RETURN 1")
-
 
 def test_query_builder_generates_expected_cypher_fragments():
     query, params = Neo4jQueryBuilder.get_nodes_by_ids(["1", "2"], "Reactome")
@@ -113,25 +109,3 @@ def test_query_builder_generates_expected_cypher_fragments():
     assert "MATCH (n:BioCyc)" in query
     assert "n.displayName IN $values" in query
     assert params == {"values": ["A"]}
-
-    query, params = Neo4jQueryBuilder.get_relationships_between_nodes(
-        ["s1"], ["t1"], ["INPUT", "OUTPUT"]
-    )
-    assert "MATCH (s)-[r:INPUT|OUTPUT]->(t)" in query
-    assert params == {"source_ids": ["s1"], "target_ids": ["t1"]}
-
-    query, _ = Neo4jQueryBuilder.get_shortest_paths(["s1"], ["t1"], ["INPUT"], max_depth=3)
-    assert "shortestPath((s)-[:INPUT*1..3]->(t))" in query
-
-    query, _ = Neo4jQueryBuilder.get_all_shortest_paths(["s1"], ["t1"])
-    assert "allShortestPaths((s)-[*]->(t))" in query
-
-    query, params = Neo4jQueryBuilder.get_currency_nodes("BioCyc")
-    assert "MATCH (n:BioCyc)" in query
-    assert "'CurrencyMetabolite' IN labels(n)" in query
-    assert params == {}
-
-    assert Neo4jQueryBuilder.extract_nodes_from_paths("path") == (
-        "UNWIND nodes(path) as node RETURN DISTINCT node"
-    )
-    assert "relationships(path)" in Neo4jQueryBuilder.extract_relationships_from_paths("path")

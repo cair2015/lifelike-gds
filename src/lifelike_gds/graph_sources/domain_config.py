@@ -18,10 +18,7 @@ REACTOME_TRACE_RELATIONSHIP_TYPES = (
   'repeatedUnitOf',
   'requiredInputOf'
 )
-REACTOME_TRACE_RELATIONSHIP_TYPES_WITH_REF = (
-    *REACTOME_TRACE_RELATIONSHIP_TYPES,
-    "referenceEntity",
-)
+REACTOME_REFERENCE_REL_TYPE = "refersToPhysicalEntity"
 
 REACTOME_TRACE_NODE_LABEL = "HumanTrace"
 REACTOME_EXCLUDED_NODE_LABELS = ['TraceCurrency', 'TraceHub']
@@ -44,20 +41,3 @@ REACTOME_EDGE_DESC_DICT = {
     "requiredInputOf": "is required input for",
 }
 
-BIOCYC_CURRENCY_METABOLITE_LABEL = "CurrencyMetabolite"
-BIOCYC_DEFAULT_EXCLUDED_NODE_LABELS = (BIOCYC_CURRENCY_METABOLITE_LABEL,)
-
-BIOCYC_EDGE_DESC_DICT = {
-    "ELEMENT_OF": "is element of",
-    "ENCODES": "encodes",
-    "MODIFIED_TO": "is modified to",
-    "COMPONENT_OF": "is component of",
-    "CONSUMED_BY": "is consumed by",
-    "PRODUCES": "produces",
-    "IN_PATHWAY": "is in",
-    "CATALYZES": "catalyzes",
-    "REGULATES": "regulates",
-    "HAS_GENE": "contains",
-    "ACTIVATES": "activates",
-    "INHIBITS": "inhibits",
-}

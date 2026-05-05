@@ -40,7 +40,7 @@ class FakeNode:
         return self._props.items()
 
 
-def make_database(monkeypatch, config=None, **kwargs):
+def make_database(monkeypatch, config=None, db_class=Database, **kwargs):
     holder = {}
 
     def fake_connection(**connection_kwargs):
@@ -60,14 +60,13 @@ def make_database(monkeypatch, config=None, **kwargs):
             "encrypted": True,
         },
     )
-    db = Database(**kwargs)
+    db = db_class(**kwargs)
     return db, holder["connection"]
 
 
 def test_database_uses_config_defaults_when_connection_args_missing(monkeypatch):
-    db, connection = make_database(monkeypatch, collection_label="Reactome")
+    db, connection = make_database(monkeypatch)
 
-    assert db.label_clause == ":Reactome"
     assert connection.init_kwargs == {
         "uri": "bolt://cfg",
         "username": "cfg-user",
@@ -80,7 +79,6 @@ def test_database_uses_config_defaults_when_connection_args_missing(monkeypatch)
 def test_database_prefers_explicit_connection_arguments(monkeypatch):
     _, connection = make_database(
         monkeypatch,
-        collection_label="BioCyc",
         uri="bolt://local",
         username="neo4j",
         password="secret",
@@ -97,34 +95,14 @@ def test_database_prefers_explicit_connection_arguments(monkeypatch):
     }
 
 
-def test_database_builds_projection_queries_with_filters():
-    class DemoDatabase(Database):
-        DEFAULT_EXCLUDED_NODE_LABELS = ("CurrencyMetabolite",)
-        TRACE_RELATIONSHIP_TYPES = ("INPUT", "OUTPUT")
-
-    node_query, rel_query, params = DemoDatabase.build_trace_graph_projection_queries(
-        collection_label="Reactome",
-        exclude_nodes=["11", 22],
-        exclude_node_labels=None,
-    )
-
-    assert "MATCH (n:Reactome)-[r:INPUT|OUTPUT]->(m:Reactome)" in node_query
-    assert "NOT elementId(n) IN $exclude_ids" in node_query
-    assert "label IN $exclude_node_labels" in rel_query
-    assert params == {
-        "exclude_ids": ["11", "22"],
-        "exclude_node_labels": ["CurrencyMetabolite"],
-    }
-
-
 def test_database_normalizes_nodes_and_wrapper_queries(monkeypatch):
-    db, connection = make_database(monkeypatch, collection_label="Reactome")
+    db, connection = make_database(monkeypatch)
     connection.records_result = [
         {"n": FakeNode("123", labels=["PhysicalEntity"], displayName="ATP")},
         {"id": "raw-id", "name": "already-normalized"},
     ]
 
-    nodes = db.get_nodes_by_node_ids(["123"])
+    nodes = db.get_nodes_by_node_ids(["123"], node_label="Reactome")
     assert nodes[0]["id"] == "123"
     assert nodes[0]["_key"] == "123"
     assert nodes[0]["labels"] == ["PhysicalEntity"]
@@ -136,26 +114,17 @@ def test_database_normalizes_nodes_and_wrapper_queries(monkeypatch):
     assert params == {"node_ids": ["123"]}
 
 
-def test_database_dataframe_single_value_and_trace_graph_helpers(monkeypatch):
-    db, connection = make_database(monkeypatch, collection_label="BioCyc")
+def test_database_dataframe_single_value_and_close_helpers(monkeypatch):
+    db, connection = make_database(monkeypatch)
     connection.dataframe_result = pd.DataFrame([{"node_id": "n1"}])
     connection.single_value_result = 7
 
-    frame = db.get_dataframe("RETURN 1 AS x", x=1)
+    frame = db.get_dataframe("RETURN 1 AS x", parameters={"x": 1})
     assert frame.to_dict(orient="records") == [{"node_id": "n1"}]
     assert connection.frame_calls == [("RETURN 1 AS x", {"x": 1})]
 
     assert db.get_single_value("RETURN 7 AS n", n=7) == 7
     assert connection.single_calls == [("RETURN 7 AS n", {"n": 7})]
-
-    db.get_trace_graph_data(exclude_nodes=["a"], exclude_node_labels=["Ignore"])
-    assert len(connection.frame_calls) == 3
-    node_query, node_params = connection.frame_calls[1]
-    rel_query, rel_params = connection.frame_calls[2]
-    assert "UNWIND [n, m] AS x" in node_query
-    assert "RETURN elementId(n) AS source" in rel_query
-    assert node_params == {"exclude_ids": ["a"], "exclude_node_labels": ["Ignore"]}
-    assert rel_params == {"exclude_ids": ["a"], "exclude_node_labels": ["Ignore"]}
 
     db.close()
     assert connection.closed is True

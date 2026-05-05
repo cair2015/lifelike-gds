@@ -254,7 +254,7 @@ class RadiateTrace(TraceGraphNx):
                         cols_to_drop = [c for c in [rev_pr_name, rev_reach] if c in df_forward.columns]
                         df_forward = df_forward.drop(columns=cols_to_drop, errors='ignore')
                     df_forward.sort_values(by=[pr_name], ascending=False, inplace=True)
-                    df_forward.to_excel(writer, sheet_name="pageranks")
+                    df_forward.reset_index(drop=True).to_excel(writer, sheet_name="pageranks", index=False)
 
                 if len(best_reverse_nodes) > 0:
                     df_reverse = df[df.index.isin(set(best_reverse_nodes))]
@@ -262,7 +262,7 @@ class RadiateTrace(TraceGraphNx):
                         cols_to_drop = [c for c in [pr_name, pr_reach] if c in df_reverse.columns]
                         df_reverse = df_reverse.drop(columns=cols_to_drop, errors='ignore')
                     df_reverse.sort_values(by=[rev_pr_name], ascending=False, inplace=True)
-                    df_reverse.to_excel(writer, sheet_name="reverse pageranks")
+                    df_reverse.reset_index(drop=True).to_excel(writer, sheet_name="reverse pageranks", index=False)
 
             logger.info(f"Exported to {filepath}")
         except Exception as e:
@@ -511,7 +511,7 @@ class RadiateTrace(TraceGraphNx):
         logger.info(f"Exporting intersection PageRank to {filepath}")
         
         try:
-            df.to_excel(filepath, index=False)
+            df.reset_index(drop=True).to_excel(filepath, index=False)
             logger.info(f"Exported {len(df)} nodes to {filepath}")
         except Exception as e:
             logger.error(f"Failed to export intersection PageRank: {e}")

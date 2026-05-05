@@ -19,15 +19,25 @@ GraphLike = "DirectedGraph | MultiDirectedGraph"
 class GraphSourceDatabase(Protocol):
     """Database-side contract required by :class:`GraphSource`."""
 
-    def get_trace_graph_data(
+    def get_query_values(self, query: str, **parameters: Any) -> list[Any]: ...
+
+    def get_dataframe(
         self,
-        exclude_nodes: list[Any] | None = None,
-        exclude_node_labels: list[str] | None = None,
-    ) -> tuple[Any, Any]: ...
+        query: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> pd.DataFrame: ...
 
-    def get_node_data_for_excel(self, node_ids: list[Any]) -> Any: ...
+    def get_node_data_for_excel(
+        self,
+        node_ids: list[Any],
+        node_label: str | None = None,
+    ) -> Any: ...
 
-    def get_nodes_by_node_ids(self, node_ids: list[Any]) -> list[Any]: ...
+    def get_nodes_by_node_ids(
+        self,
+        node_ids: list[Any],
+        node_label: str | None = None,
+    ) -> list[Any]: ...
 
 
 class GraphSource(ABC):
@@ -62,35 +72,6 @@ class GraphSource(ABC):
                 if isinstance(value, dict):
                     return value
         return record
-
-    @staticmethod
-    def _as_dataframe(rows: Any) -> pd.DataFrame:
-        """Convert arbitrary row iterables into a detached DataFrame copy."""
-        if isinstance(rows, pd.DataFrame):
-            return rows.copy()
-        if rows is None:
-            return pd.DataFrame()
-        return pd.DataFrame(list(rows))
-
-    def populate_tracegraph(
-        self,
-        tracegraph: "TraceGraphNx",
-        node_rows: Any,
-        rel_rows: Any,
-    ) -> None:
-        """Populate a trace graph from tabular node and relationship rows."""
-        node_data = self._as_dataframe(node_rows)
-        if not node_data.empty and "node_id" in node_data.columns:
-            tracegraph.graph.add_nodes_from(node_id for node_id in node_data["node_id"])
-
-        rel_data = self._as_dataframe(rel_rows)
-        if not rel_data.empty:
-            for _, row in rel_data.iterrows():
-                tracegraph.graph.add_edge(
-                    row["source"],
-                    row["target"],
-                    label=row["type"],
-                )
 
     @classmethod
     @abstractmethod
@@ -134,6 +115,11 @@ class GraphSource(ABC):
         """Load node details for every node currently present in ``graph``."""
         self.load_node_details(list(graph.nodes), graph)
 
+    def get_node_query_label(self) -> str | None:
+        """Return the backend node label used for node detail lookups."""
+        return None
+
+    @abstractmethod
     def initiate_trace_graph(
         self,
         tracegraph: "TraceGraphNx",
@@ -142,15 +128,8 @@ class GraphSource(ABC):
     ) -> None:
         """
         Load the default projected graph into ``tracegraph``.
-
-        Subclasses can override this when they need custom projection behavior,
-        but the default implementation delegates to the database adapter.
         """
-        self._populate_tracegraph_from_database(
-            tracegraph,
-            exclude_nodes=None,
-            exclude_node_labels=exclude_node_labels,
-        )
+        raise NotImplementedError
 
     def load_graph_to_tracegraph(
         self,
@@ -159,38 +138,29 @@ class GraphSource(ABC):
         exclude_node_labels: list[str] | None = None,
     ) -> None:
         """
-        Populate ``tracegraph`` while honoring the optional exclusion filters.
+        Compatibility wrapper around :meth:`initiate_trace_graph`.
 
-        The default implementation delegates the projection query to the
-        database adapter and populates the in-memory trace graph from the
-        returned rows.
+        ``exclude_nodes`` is ignored by the default implementation. Subclasses
+        can override when they need additional filtering behavior.
         """
-        self._populate_tracegraph_from_database(
+        self.initiate_trace_graph(
             tracegraph,
-            exclude_nodes=exclude_nodes,
             exclude_node_labels=exclude_node_labels,
         )
 
     def get_node_data_for_excel(self, node_ids: list[Any]) -> Any:
         """Return export-ready node data for the requested node ids."""
-        return self.database.get_node_data_for_excel(node_ids)
-
-    def _populate_tracegraph_from_database(
-        self,
-        tracegraph: "TraceGraphNx",
-        exclude_nodes: list[Any] | None = None,
-        exclude_node_labels: list[str] | None = None,
-    ) -> None:
-        """Fetch projection rows from the database and load them into a trace graph."""
-        node_rows, rel_rows = self.database.get_trace_graph_data(
-            exclude_nodes=exclude_nodes,
-            exclude_node_labels=exclude_node_labels,
+        return self.database.get_node_data_for_excel(
+            node_ids,
+            node_label=self.get_node_query_label(),
         )
-        self.populate_tracegraph(tracegraph, node_rows, rel_rows)
 
     def load_node_details(self, node_ids: list[Any], graph: Any) -> None:
         """Load node properties from the backend and merge them into ``graph``."""
-        raw_nodes = self.database.get_nodes_by_node_ids(node_ids)
+        raw_nodes = self.database.get_nodes_by_node_ids(
+            node_ids,
+            node_label=self.get_node_query_label(),
+        )
         nodes = [self.unwrap_node_record(node) for node in raw_nodes]
         valid_nodes = []
 
@@ -224,7 +194,10 @@ class GraphSource(ABC):
             self.get_node_id(node): node
             for node in map(
                 self.unwrap_node_record,
-                self.database.get_nodes_by_node_ids(list(source_ids | target_ids)),
+                self.database.get_nodes_by_node_ids(
+                    list(source_ids | target_ids),
+                    node_label=self.get_node_query_label(),
+                ),
             )
         }
 

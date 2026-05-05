@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-from neo4j import GraphDatabase, Result, TrustSystemCAs
+from neo4j import GraphDatabase, TrustSystemCAs
 from neo4j.exceptions import Neo4jError
 
 logger = logging.getLogger(__name__)
@@ -64,27 +64,6 @@ class Neo4jConnection:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
-    def execute_query(
-        self,
-        query: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        database: Optional[str] = None,
-    ) -> Result:
-        """Execute a Cypher query and return the raw Neo4j result.
-        
-        """
-        if parameters is None:
-            parameters = {}
-
-        db = database or self.database
-
-        try:
-            with self.driver.session(database=db) as session:
-                return session.run(query, parameters)
-        except Neo4jError as exc:
-            logger.error("Query execution failed: %s\nQuery: %s", exc, query)
-            raise
-
     def get_records(
         self,
         query: str,
@@ -131,28 +110,23 @@ class Neo4jConnection:
             raise ValueError("No records returned from query")
         return next(iter(records[0].values()))
 
-    def get_single_record(
-        self,
-        query: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        database: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Return the first record from a query result."""
-        records = self.get_records(query, parameters, database)
-        if not records:
-            raise ValueError("No records returned from query")
-        return records[0]
-
 
 class Neo4jQueryBuilder:
     """Build common Neo4j Cypher queries used by graph source adapters."""
 
     @staticmethod
+    def _label_clause(collection_label: Optional[str]) -> str:
+        """Format a Cypher label clause from an optional label."""
+        return f":{collection_label}" if collection_label else ""
+
+    @classmethod
     def get_nodes_by_ids(
+        cls,
         node_ids: List[Union[int, str]],
         collection_label: Optional[str] = None,
     ) -> tuple[str, Dict[str, Any]]:
-        label_clause = f":{collection_label}" if collection_label else ""
+        """Build a Cypher query to retrieve nodes by their Neo4j element ids."""
+        label_clause = cls._label_clause(collection_label)
         query = f"""
         MATCH (n{label_clause})
         WHERE elementId(n) IN $node_ids
@@ -160,100 +134,17 @@ class Neo4jQueryBuilder:
         """
         return query, {"node_ids": node_ids}
 
-    @staticmethod
+    @classmethod
     def get_nodes_by_property(
+        cls,
         property_name: str,
         property_values: List[Any],
         collection_label: Optional[str] = None,
     ) -> tuple[str, Dict[str, Any]]:
-        label_clause = f":{collection_label}" if collection_label else ""
+        label_clause = cls._label_clause(collection_label)
         query = f"""
         MATCH (n{label_clause})
         WHERE n.{property_name} IN $values
         RETURN n
         """
         return query, {"values": property_values}
-
-    @staticmethod
-    def get_relationships_between_nodes(
-        source_ids: List[Union[int, str]],
-        target_ids: List[Union[int, str]],
-        relationship_types: Optional[List[str]] = None,
-    ) -> tuple[str, Dict[str, Any]]:
-        rel_filter = ""
-        if relationship_types:
-            rel_filter = f":{'|'.join(relationship_types)}"
-
-        query = f"""
-        MATCH (s)-[r{rel_filter}]->(t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        RETURN elementId(s) as source, elementId(t) as target, type(r) as type, properties(r) as properties
-        """
-        return query, {"source_ids": source_ids, "target_ids": target_ids}
-
-    @staticmethod
-    def get_shortest_paths(
-        source_ids: List[Union[int, str]],
-        target_ids: List[Union[int, str]],
-        relationship_types: Optional[List[str]] = None,
-        max_depth: Optional[int] = None,
-    ) -> tuple[str, Dict[str, Any]]:
-        rel_filter = ""
-        if relationship_types:
-            rel_filter = f":{'|'.join(relationship_types)}"
-
-        depth_constraint = f"*1..{max_depth}" if max_depth else "*"
-
-        query = f"""
-        MATCH (s), (t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        MATCH p = shortestPath((s)-[{rel_filter}{depth_constraint}]->(t))
-        RETURN p
-        """
-        return query, {"source_ids": source_ids, "target_ids": target_ids}
-
-    @staticmethod
-    def get_all_shortest_paths(
-        source_ids: List[Union[int, str]],
-        target_ids: List[Union[int, str]],
-        relationship_types: Optional[List[str]] = None,
-        max_depth: Optional[int] = None,
-    ) -> tuple[str, Dict[str, Any]]:
-        rel_filter = ""
-        if relationship_types:
-            rel_filter = f":{'|'.join(relationship_types)}"
-
-        depth_constraint = f"*1..{max_depth}" if max_depth else "*"
-
-        query = f"""
-        MATCH (s), (t)
-        WHERE elementId(s) IN $source_ids AND elementId(t) IN $target_ids
-        MATCH p = allShortestPaths((s)-[{rel_filter}{depth_constraint}]->(t))
-        RETURN p
-        """
-        return query, {"source_ids": source_ids, "target_ids": target_ids}
-
-    @staticmethod
-    def get_currency_nodes(collection_label: Optional[str] = None) -> tuple[str, Dict[str, Any]]:
-        label_clause = f":{collection_label}" if collection_label else ""
-        query = f"""
-        MATCH (n{label_clause})
-        WHERE 'CurrencyMetabolite' IN labels(n)
-        RETURN DISTINCT n
-        """
-        return query, {}
-
-    @staticmethod
-    def extract_nodes_from_paths(paths_variable: str = "p") -> str:
-        """Return a Cypher fragment that unwinds nodes from matched paths."""
-        return f"UNWIND nodes({paths_variable}) as node RETURN DISTINCT node"
-
-    @staticmethod
-    def extract_relationships_from_paths(paths_variable: str = "p") -> str:
-        """Return a Cypher fragment that unwinds relationships from matched paths."""
-        return (
-            "UNWIND relationships("
-            f"{paths_variable}"
-            ") as rel RETURN DISTINCT elementId(startNode(rel)) as source, "
-            "elementId(endNode(rel)) as target, type(rel) as type"
-        )

@@ -123,7 +123,7 @@ class InBetweennessTrace(TraceGraphNx):
         df = self.get_nodes_detail_as_dataframe(export_nodes)
         filepath = f"{self.datadir}/{filename}"
         logging.info(f"export betweenness data into {filepath}")
-        df.to_excel(filepath)
+        df.reset_index(drop=True).to_excel(filepath, index=False)
 
     def add_trace_from_sources_to_all_selected_nodes(
         self, 

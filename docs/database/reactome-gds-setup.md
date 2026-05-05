@@ -274,7 +274,44 @@ MATCH (n:HumanTrace) REMOVE n:BaseObject, n:Trackable, n:Deletable;
 
 ---
 
-## Step 7: Create Analysis Graph Projection
+## Step 7: Set Entity Types
+
+### Classify Node Types for Analysis and Visualization
+
+```cypher
+// Classify nodes based on their reference entities
+match(n:HumanTrace:PhysicalEntity)-[:referenceEntity]->(:Protein) SET n.entityType = 'Protein';
+
+match(n:HumanTrace:PhysicalEntity)-[:referenceEntity]->(:Chemical) SET n.entityType = 'Chemical';
+
+match(n:HumanTrace:PhysicalEntity)-[:referenceEntity]->(:Gene) where n.entityType is null SET n.entityType = 'Gene';
+
+match(n:PhysicalEntity:HumanTrace)-[:referenceEntity]->(r:ReferenceRNASequence) where n.entityType is null SET n.entityType = 'RNA';
+
+match(n:PhysicalEntity:HumanTrace)-[:referenceEntity]->(r:ReferenceDNASequence) where n.entityType is null SET n.entityType = 'Gene';
+
+// Fallback: use schemaClass for nodes without determined entityType, including events
+match(n:HumanTrace) where n.entityType is null SET n.entityType = n.schemaClass;
+```
+
+**Purpose**: Populate the `entityType` property on all `HumanTrace` nodes with standardized classification values:
+- **Protein**: Physical entities referencing gene products with UniProt identifiers
+- **Chemical**: Physical entities referencing chemical molecules
+- **Gene**: Physical entities referencing DNA sequences or genes
+- **RNA**: Physical entities referencing RNA sequences
+- **Event type**: For nodes without reference entities, fallback to the original `schemaClass` property (Reaction, Complex, etc.)
+
+The `entityType` property is used throughout the analysis pipeline for:
+- Display and visualization in network diagrams
+- Node filtering and grouping in radiate analysis
+- Report generation and data export
+- Type-specific trace algorithms
+
+This approach ensures all nodes have meaningful type information while maintaining backward compatibility with the Reactome schema.
+
+---
+
+## Step 8: Create Analysis Graph Projection
 
 ### Final Graph Projection for Radiate and Trace Operations
 
@@ -333,6 +370,7 @@ This database setup creates an optimized, filtered Neo4j graph that:
 3. **Enables bidirectional traversal** through reverse relationships
 4. **Identifies special entities** (currency chemicals, hubs) for smart filtering
 5. **Maintains clean schema** by removing infrastructure labels
-6. **Provides analysis-ready projection** containing only relevant nodes and relationships
+6. **Classifies node types** with standardized `entityType` property for analysis and visualization
+7. **Provides analysis-ready projection** containing only relevant nodes and relationships
 
 The result is a clean, semantically-rich graph suitable for complex network analysis operations like Radiate tracing and shortest path queries.

@@ -29,7 +29,7 @@ class FakeDatabase:
     def get_dataframe(self, query, **parameters):
         return self.frames[query].copy()
 
-    def get_nodes_by_node_ids(self, node_ids):
+    def get_nodes_by_node_ids(self, node_ids, node_label=None):
         return [self.node_records[node_id] for node_id in node_ids if node_id in self.node_records]
 
 
@@ -54,13 +54,10 @@ class FakeGraphSource(GraphSource):
         return None
 
     def initiate_trace_graph(self, tracegraph, **kwargs):
-        tracegraph.add_nodes("nodes")
-        tracegraph.add_rels("rels")
+        tracegraph.add_nodes_from_rows(self.database.get_dataframe("nodes"))
+        tracegraph.add_relationship_rows(self.database.get_dataframe("rels"))
 
-    def load_graph_to_tracegraph(self, tracegraph, exclude_nodes=None, exclude_node_labels=None):
-        self.initiate_trace_graph(tracegraph)
-
-    def get_node_data_for_excel(self, node_ids):
+    def get_node_data_for_excel(self, node_ids, node_label=None):
         return pd.DataFrame(
             [self.database.node_records[node_id] for node_id in node_ids]
         )

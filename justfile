@@ -58,3 +58,7 @@ clean:
   rm -rf .venv
   find . -type d -name "__pycache__" -prune -exec rm -rf {} +
   find . -type f -name "*.pyc" -delete
+
+# update package
+install-dev:
+  uv pip install -e .
