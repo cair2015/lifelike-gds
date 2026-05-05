@@ -255,8 +255,7 @@ class ShortestPathTrace(TraceGraphNx):
         source_nodes: list[NodeRecord],
         target_name: str,
         target_nodes: list[NodeRecord],
-        graph_description: str,
-        output_dir: str | Path,
+        graph_description: str
     ) -> bool:
         """
         Build and export a shortest-path trace network between two node groups.
@@ -287,12 +286,10 @@ class ShortestPathTrace(TraceGraphNx):
         self.add_graph_description(graph_description)
         source_as_query = len(source_nodes) > len(target_nodes)
         ok = self.add_shortest_paths(source_name, target_name, source_as_query)
-        self.clean_graph()
-        self.load_graph_detail()
+
         if ok:
             graphfile = f"Shortest_paths_from_{source_name}_to_{target_name}.graph"
-            filepath = Path(output_dir) / graphfile
-            self.write_to_sankey_file(filepath)
+            self.write_to_sankey_file(graphfile)
             return True
         else:
             logger.info("No paths found from %s to %s", source_name, target_name)

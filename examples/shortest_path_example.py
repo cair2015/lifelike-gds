@@ -43,8 +43,9 @@ target_nodes = database.get_nodes_by_attr(
 print(f"Found {len(source_nodes)} source nodes and {len(target_nodes)} target nodes.")
 
 tracegraph = ShortestPathTrace(reactome)
+tracegraph.set_datadir(output_dir)
 
 tracegraph.init_default_graph()
 tracegraph.write_shortest_paths(source_name=source_name, source_nodes=source_nodes, 
                                 target_name=target_name, target_nodes=target_nodes, 
-                                graph_description="Reactome", output_dir=output_dir) 
+                                graph_description="Reactome") 

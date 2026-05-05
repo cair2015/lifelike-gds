@@ -91,6 +91,14 @@ class TraceGraphNx:
         if not os.path.exists(datadir):
             os.makedirs(datadir, exist_ok=True)
 
+    def _resolve_output_path(self, filename: str | Path) -> Path:
+        """Resolve an export filename relative to ``datadir`` when needed."""
+        path = Path(filename)
+        if not path.is_absolute():
+            path = Path(self.datadir) / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
     def add_node_ids(self, node_ids: Iterable[NodeId]) -> None:
         """
         Add node ids to the graph.
@@ -257,23 +265,24 @@ class TraceGraphNx:
         """
         self.graphsource.load_node_details(nodes, self.graph)
 
-    def clean_graph(self) -> None:
+    def clean_graph(self, keep_node_sets: bool = True) -> None:
         """
         Remove unused nodes and edges to create lightweight graph.
         
-        Keeps only nodes and edges that are part of traces or in named node sets.
+        Args:
+            keep_node_sets: Whether to preserve nodes referenced by named node
+                sets in addition to traced nodes.
         """
         node_size1 = len(self.graph)
         nodes = get_traced_nodes(self.graph)
         
-        # Get nodes in named node sets
-        nodeset_nodes = set()
-        node_sets = self.graph.graph.get("node_sets", {})
-        for node_set in node_sets.values():
-            # nodeset_nodes.update(node_set.get("nodes", set()))
-            nodeset_nodes.update(node_set)
-        
-        nodes.update(nodeset_nodes)
+        if keep_node_sets:
+            nodeset_nodes = set()
+            node_sets = self.graph.graph.get("node_sets", {})
+            for node_set in node_sets.values():
+                nodeset_nodes.update(node_set)
+            nodes.update(nodeset_nodes)
+
         self.graph = self.graph.keep(nodes)
         node_size2 = len(self.graph)
         
@@ -505,8 +514,11 @@ class TraceGraphNx:
         Args:
             filename: Output file path (str or Path, should end with .json or .graph)
         """
-        write_sankey_file(str(filename), self.graph)
-        logger.info(f"Graph exported to {filename}")
+        self.clean_graph()
+        self.load_graph_detail()
+        filepath = self._resolve_output_path(filename)
+        write_sankey_file(str(filepath), self.graph)
+        logger.info("Graph exported to %s", filepath)
 
     def write_to_cytoscape_file(self, filename: str | Path) -> None:
         """
@@ -515,7 +527,8 @@ class TraceGraphNx:
         Args:
             filename: Output file path (str or Path, should end with .json)
         """
-        write_cytoscape_file(str(filename), self.graph)
-        logger.info(f"Graph exported to {filename}")
+        filepath = self._resolve_output_path(filename)
+        write_cytoscape_file(str(filepath), self.graph)
+        logger.info("Graph exported to %s", filepath)
 
         
